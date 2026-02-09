@@ -134,4 +134,4 @@ Weitere Details: [docs/architecture.md](docs/architecture.md)
 
 ## Lizenz
 
-MIT
+Alle Rechte vorbehalten. Nutzung nur mit Genehmigung des Autors. Siehe [LICENSE](LICENSE).
