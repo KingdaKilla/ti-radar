@@ -1,0 +1,46 @@
+# Datenbanken (zu gross fuer Git — separat bereitstellen)
+data/*.db
+data/*.db-journal
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+.coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Umgebung
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# Claude Code (lokale Entwicklungshilfe)
+.claude/
+data/.claude/
+CLAUDE.md
+
+# Playwright (lokale Browser-Tests)
+.playwright-mcp/
+
+# Screenshots (Design-Iterationen)
+*.png
+
+# Interne Entwicklungsdoku
+docs/plans/
+TODO.txt
+
+# OS
+.DS_Store
+Thumbs.db
