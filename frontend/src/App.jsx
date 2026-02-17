@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import SearchBar from './components/SearchBar'
 import RadarGrid from './components/RadarGrid'
 import ExplainabilityBar from './components/ExplainabilityBar'
@@ -13,7 +14,13 @@ const EXAMPLE_TECHNOLOGIES = [
 ]
 
 export default function App() {
-  const { data, loading, error, analyze } = useRadar()
+  const { data, loading, error, analyze, retry } = useRadar()
+  const radar2 = useRadar()
+  const [comparing, setComparing] = useState(false)
+
+  const toggleCompare = () => {
+    setComparing(prev => !prev)
+  }
 
   return (
     <div className="min-h-screen">
@@ -28,19 +35,48 @@ export default function App() {
               Technologieanalyse auf Basis öffentlicher Daten
             </p>
           </div>
-          <span className="px-3 py-1 bg-[#e8917a]/10 border border-[#e8917a]/20 rounded-full text-xs text-[#e8917a]">
-            Prototype 5
-          </span>
+          <div className="flex items-center gap-2">
+            {data && (
+              <button
+                onClick={toggleCompare}
+                className={`px-3 py-1 border rounded-full text-xs transition-all ${
+                  comparing
+                    ? 'bg-[#e8917a]/20 border-[#e8917a]/30 text-[#e8917a]'
+                    : 'bg-white/[0.04] border-white/[0.08] text-[#5c6370] hover:text-[#9ca3af]'
+                }`}
+              >
+                Vergleichen
+              </button>
+            )}
+            <span className="px-3 py-1 bg-[#e8917a]/10 border border-[#e8917a]/20 rounded-full text-xs text-[#e8917a]">
+              Prototype 5
+            </span>
+          </div>
         </div>
       </header>
 
       {/* Main */}
       <main className="px-4 sm:px-6 lg:px-8 xl:px-12 py-6">
-        <SearchBar onSearch={(q, y) => analyze(q, y)} loading={loading} />
+        <div className={comparing ? 'flex flex-col xl:flex-row gap-4 mb-4' : ''}>
+          <div className={comparing ? 'flex-1' : ''}>
+            <SearchBar onSearch={(q, y) => analyze(q, y)} loading={loading} />
+          </div>
+          {comparing && (
+            <div className="flex-1">
+              <SearchBar onSearch={(q, y) => radar2.analyze(q, y)} loading={radar2.loading} />
+            </div>
+          )}
+        </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-300">
-            Fehler: {error}
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-300 flex items-center justify-between">
+            <span>Fehler: {error}</span>
+            <button
+              onClick={retry}
+              className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded-md text-xs text-red-300 transition-colors ml-4 whitespace-nowrap"
+            >
+              Erneut versuchen
+            </button>
           </div>
         )}
 
@@ -62,7 +98,7 @@ export default function App() {
           </>
         )}
 
-        {data && (
+        {data && !comparing && (
           <>
             <div className="text-center mb-6">
               <h2 className="text-2xl font-bold">{data.technology}</h2>
@@ -75,6 +111,36 @@ export default function App() {
               <ExplainabilityBar data={data.explainability} />
             </div>
           </>
+        )}
+
+        {/* Comparison mode */}
+        {comparing && (data || radar2.data) && (
+          <div className="flex flex-col xl:flex-row gap-6">
+            {data && (
+              <div className="flex-1 min-w-0">
+                <div className="text-center mb-4">
+                  <h2 className="text-xl font-bold">{data.technology}</h2>
+                  <p className="text-xs text-[#5c6370]">{data.analysis_period}</p>
+                </div>
+                <RadarGrid data={data} compact />
+                <div className="mt-4">
+                  <ExplainabilityBar data={data.explainability} />
+                </div>
+              </div>
+            )}
+            {radar2.data && (
+              <div className="flex-1 min-w-0">
+                <div className="text-center mb-4">
+                  <h2 className="text-xl font-bold">{radar2.data.technology}</h2>
+                  <p className="text-xs text-[#5c6370]">{radar2.data.analysis_period}</p>
+                </div>
+                <RadarGrid data={radar2.data} compact />
+                <div className="mt-4">
+                  <ExplainabilityBar data={radar2.data.explainability} />
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
         {/* Empty state with example chips */}

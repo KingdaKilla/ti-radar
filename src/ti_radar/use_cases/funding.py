@@ -74,17 +74,17 @@ async def analyze_funding(
         logger.warning("Funding year/programme query failed: %s", e)
         warnings.append(f"Programm-Zeitreihe fehlgeschlagen: {e}")
 
-    # Gesamtfoerderung
-    total_funding = sum(float(f["funding"]) for f in funding_years)
-    total_projects = sum(int(f["count"]) for f in funding_years)
+    # Gesamtfoerderung (null-safe)
+    total_funding = sum(float(f["funding"] or 0) for f in funding_years)
+    total_projects = sum(int(f["count"] or 0) for f in funding_years)
     avg_size = total_funding / total_projects if total_projects > 0 else 0.0
 
     # CAGR der Foerderung
     funding_cagr = 0.0
-    non_zero = [f for f in funding_years if float(f["funding"]) > 0]
+    non_zero = [f for f in funding_years if float(f["funding"] or 0) > 0]
     if len(non_zero) >= 2:
-        first = float(non_zero[0]["funding"])
-        last = float(non_zero[-1]["funding"])
+        first = float(non_zero[0]["funding"] or 0)
+        last = float(non_zero[-1]["funding"] or 0)
         funding_cagr = cagr(first, last, len(non_zero) - 1)
         methods.append(f"Foerder-CAGR ueber {len(non_zero)} Jahre")
 
@@ -93,17 +93,17 @@ async def analyze_funding(
     for f in funding_years:
         time_series.append({
             "year": int(f["year"]),
-            "funding": round(float(f["funding"]), 2),
-            "projects": int(f["count"]),
+            "funding": round(float(f["funding"] or 0), 2),
+            "projects": int(f["count"] or 0),
         })
 
     # Programme formatieren
     by_programme: list[dict[str, Any]] = []
     for p in programme_data:
         by_programme.append({
-            "programme": str(p["programme"]),
-            "funding": round(float(p["funding"]), 2),
-            "projects": int(p["count"]),
+            "programme": str(p["programme"] or "UNKNOWN"),
+            "funding": round(float(p["funding"] or 0), 2),
+            "projects": int(p["count"] or 0),
         })
 
     # Zeitreihe pro Programm formatieren
@@ -111,9 +111,9 @@ async def analyze_funding(
     for yp in year_programme_data:
         time_series_by_programme.append({
             "year": int(yp["year"]),
-            "programme": str(yp["programme"]),
-            "funding": round(float(yp["funding"]), 2),
-            "projects": int(yp["count"]),
+            "programme": str(yp["programme"] or "UNKNOWN"),
+            "funding": round(float(yp["funding"] or 0), 2),
+            "projects": int(yp["count"] or 0),
         })
 
     methods.append("EU-Foerderdaten-Aggregation (FP7, H2020, Horizon Europe)")

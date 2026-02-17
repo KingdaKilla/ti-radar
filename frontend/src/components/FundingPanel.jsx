@@ -1,6 +1,8 @@
-import { useMemo } from 'react'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, CartesianGrid, Legend } from 'recharts'
+import { useState, useMemo } from 'react'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts'
 import MetricCard from './MetricCard'
+import DownloadButton from './DownloadButton'
+import { exportCSV } from '../utils/export'
 
 const PROGRAMME_COLORS = {
   FP7: '#fbbf24',
@@ -22,7 +24,9 @@ function formatTooltipValue(value) {
   return formatCurrency(value)
 }
 
-export default function FundingPanel({ data }) {
+export default function FundingPanel({ data, selectedActor }) {
+  const [hiddenProgs, setHiddenProgs] = useState(new Set())
+
   if (!data) return <PanelSkeleton title="Förderung" />
 
   const programmes = (data.by_programme || []).map(p => ({
@@ -35,7 +39,7 @@ export default function FundingPanel({ data }) {
     funding_m: Math.round((t.funding || 0) / 1e6 * 10) / 10,
   }))
 
-  // Stacked-Bar-Daten: Jahr × Programm → {year, FP7: x, H2020: y, HORIZON: z}
+  // Stacked-Bar-Daten: Jahr x Programm
   const stackedData = useMemo(() => {
     const byProg = data.time_series_by_programme || []
     if (byProg.length === 0) return null
@@ -58,53 +62,88 @@ export default function FundingPanel({ data }) {
     return [...progs].sort()
   }, [stackedData])
 
+  // Horizontal stacked bar for programme distribution
+  const totalFunding = programmes.reduce((s, p) => s + (p.funding || 0), 0)
+  const progShares = programmes.map(p => ({
+    ...p,
+    pct: totalFunding > 0 ? Math.round((p.funding / totalFunding) * 1000) / 10 : 0,
+  }))
+
+  const toggleProg = (prog) => {
+    setHiddenProgs(prev => {
+      const next = new Set(prev)
+      if (next.has(prog)) next.delete(prog)
+      else next.add(prog)
+      return next
+    })
+  }
+
+  const totalProjects = timeSeries.reduce((s, t) => s + (t.projects || 0), 0)
+  const cagrValue = data.funding_cagr
+
   return (
     <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-6">
-      <h3 className="text-lg font-semibold mb-4">Förderung (UC4)</h3>
-
-      <div className="grid grid-cols-3 gap-3 mb-4">
-        <MetricCard title="Gesamt" value={formatCurrency(data.total_funding_eur || 0)} subtitle="EU-Förderung" />
-        <MetricCard title="Projekte" value={timeSeries.reduce((s, t) => s + (t.projects || 0), 0).toLocaleString()} subtitle="Geförderte Projekte" />
-        <MetricCard title="Avg. Projekt" value={formatCurrency(data.avg_project_size || 0)} subtitle="Durchschnittl. Förderung" />
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-1.5">
+          <h3 className="text-lg font-semibold">Förderung (UC4)</h3>
+          <DownloadButton onClick={() => {
+            const rows = timeSeries.map(t => [t.year, t.projects || 0, t.funding || 0])
+            exportCSV('uc4_foerderung.csv', ['Jahr', 'Projekte', 'Förderung EUR'], rows)
+          }} />
+        </div>
+        {selectedActor && (
+          <span className="px-2 py-0.5 bg-[#e8917a]/10 border border-[#e8917a]/20 rounded-full text-[10px] text-[#e8917a]">
+            {selectedActor}
+          </span>
+        )}
       </div>
 
-      {programmes.length > 0 && (
-        <div className="flex gap-4 mb-4">
-          <div className="h-36 flex-1">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={programmes}
-                  dataKey="funding"
-                  nameKey="programme"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={30}
-                  outerRadius={55}
-                  paddingAngle={2}
-                >
-                  {programmes.map((p, i) => (
-                    <Cell key={i} fill={p.fill} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={TOOLTIP} formatter={formatTooltipValue} />
-              </PieChart>
-            </ResponsiveContainer>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+        <MetricCard title="Gesamt" value={formatCurrency(data.total_funding_eur || 0)} subtitle="EU-Förderung" />
+        <MetricCard title="Projekte" value={totalProjects.toLocaleString()} subtitle="Geförderte Projekte" />
+        <MetricCard title="Avg. Projekt" value={formatCurrency(data.avg_project_size || 0)} subtitle="Durchschnittl. Förderung" />
+        <MetricCard
+          title="CAGR"
+          value={cagrValue != null ? `${cagrValue > 0 ? '+' : ''}${cagrValue.toFixed(1)}%` : '\u2014'}
+          subtitle="Jährliches Wachstum"
+          info={"CAGR = ((V_final / V_initial)^(1/n) - 1) \u00D7 100\nCompound Annual Growth Rate"}
+        />
+      </div>
+
+      {/* Programme distribution — horizontal stacked bar */}
+      {progShares.length > 0 && (
+        <div className="mb-4">
+          <p className="text-xs text-[#5c6370] mb-2">Programmverteilung</p>
+          <div className="h-5 flex rounded-md overflow-hidden">
+            {progShares.map(p => (
+              <div
+                key={p.programme}
+                style={{ width: `${p.pct}%`, backgroundColor: p.fill }}
+                className="transition-all relative group"
+                title={`${p.programme}: ${formatCurrency(p.funding)} (${p.pct}%)`}
+              />
+            ))}
           </div>
-          <div className="flex flex-col justify-center gap-1.5">
-            {programmes.map(p => (
-              <div key={p.programme} className="flex items-center gap-2 text-xs">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: p.fill }} />
+          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+            {progShares.map(p => (
+              <button
+                key={p.programme}
+                onClick={() => toggleProg(p.programme)}
+                className={`flex items-center gap-1.5 text-xs transition-opacity ${
+                  hiddenProgs.has(p.programme) ? 'opacity-30' : 'opacity-100'
+                }`}
+              >
+                <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: p.fill }} />
                 <span className="text-[#9ca3af]">{p.programme}</span>
-                <span className="text-[#5c6370]">{formatCurrency(p.funding)}</span>
-              </div>
+                <span className="text-[#5c6370]">{p.pct}%</span>
+              </button>
             ))}
           </div>
         </div>
       )}
 
       {(stackedData || timeSeries.length > 0) && (
-        <div className="h-48">
+        <div className="h-40 sm:h-48">
           <p className="text-xs text-[#5c6370] mb-1">Förderung pro Jahr (Mio. EUR)</p>
           <ResponsiveContainer width="100%" height="100%">
             {stackedData ? (
@@ -114,7 +153,7 @@ export default function FundingPanel({ data }) {
                 <YAxis tick={{ fill: '#5c6370', fontSize: 10 }} tickLine={false} axisLine={false} />
                 <Tooltip contentStyle={TOOLTIP} formatter={(value, name) => [`${value}M EUR`, name]} />
                 <Legend wrapperStyle={{ fontSize: 10 }} />
-                {stackedProgrammes.map(prog => (
+                {stackedProgrammes.filter(p => !hiddenProgs.has(p)).map(prog => (
                   <Bar key={prog} dataKey={prog} stackId="funding" fill={PROGRAMME_COLORS[prog] || PROGRAMME_COLORS.UNKNOWN} />
                 ))}
               </BarChart>
@@ -144,7 +183,13 @@ function PanelSkeleton({ title }) {
   return (
     <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-6 animate-pulse">
       <h3 className="text-lg font-semibold mb-4">{title}</h3>
-      <div className="h-40 bg-white/[0.04] rounded-lg" />
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+        <div className="h-16 bg-white/[0.04] rounded-lg" />
+        <div className="h-16 bg-white/[0.04] rounded-lg" />
+        <div className="h-16 bg-white/[0.04] rounded-lg" />
+        <div className="h-16 bg-white/[0.04] rounded-lg" />
+      </div>
+      <div className="h-48 bg-white/[0.04] rounded-lg" />
     </div>
   )
 }

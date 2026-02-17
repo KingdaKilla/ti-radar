@@ -474,3 +474,80 @@ class TestCordisRepository:
         assert len(h2020_entries) >= 1
         h2020_total = sum(r["count"] for r in h2020_entries)
         assert h2020_total == 3
+
+    async def test_co_participation(self, cordis_db: str):
+        """Co-Partizipation: Org-Paare in denselben Projekten."""
+        repo = CordisRepository(cordis_db)
+        result = await repo.co_participation("quantum")
+        assert len(result) > 0
+        # QCOMP (project 1) hat TU MUNICH + CNRS => ein Paar
+        pairs = {(r["actor_a"], r["actor_b"]) for r in result}
+        # Entweder (TU MUNICH, CNRS) oder umgekehrt
+        has_qcomp_pair = any(
+            ("TU MUNICH" in p and "CNRS" in p) for p in pairs
+        )
+        assert has_qcomp_pair
+
+    async def test_co_participation_no_results(self, cordis_db: str):
+        repo = CordisRepository(cordis_db)
+        result = await repo.co_participation("nonexistent_xyz")
+        assert result == []
+
+    async def test_organizations_with_programme(self, cordis_db: str):
+        """Org -> Programme Mapping fuer Sankey."""
+        repo = CordisRepository(cordis_db)
+        result = await repo.organizations_with_programme("quantum")
+        assert len(result) > 0
+        # Jeder Eintrag hat name, programme, count
+        for r in result:
+            assert "name" in r
+            assert "programme" in r
+            assert "count" in r
+
+    async def test_top_organizations_with_country(self, cordis_db: str):
+        """Top-Orgs mit Land-Info."""
+        repo = CordisRepository(cordis_db)
+        result = await repo.top_organizations_with_country("quantum")
+        assert len(result) > 0
+        # Jeder Eintrag hat name, country, count
+        for r in result:
+            assert "name" in r
+            assert "country" in r
+            assert "count" in r
+        # TU MUNICH ist DE
+        tu = [r for r in result if r["name"] == "TU MUNICH"]
+        if tu:
+            assert tu[0]["country"] == "DE"
+
+
+class TestPatentCoApplicants:
+    """Tests fuer Patent-Co-Anmelder (normalisierte Tabellen noetig)."""
+
+    async def test_co_applicants_normalized(self, patent_db_normalized: str):
+        """EP2001 hat SIEMENS + BOSCH => mindestens ein Co-Applicant-Paar."""
+        repo = PatentRepository(patent_db_normalized)
+        result = await repo.co_applicants("quantum")
+        assert len(result) > 0
+        # SIEMENS-BOSCH Paar muss vorhanden sein
+        has_pair = any(
+            ("SIEMENS" in r["actor_a"] and "BOSCH" in r["actor_b"])
+            or ("BOSCH" in r["actor_a"] and "SIEMENS" in r["actor_b"])
+            for r in result
+        )
+        assert has_pair
+
+    async def test_co_applicants_returns_empty_without_tables(self, patent_db: str):
+        """Ohne normalisierte Tabellen: leere Liste."""
+        repo = PatentRepository(patent_db)
+        result = await repo.co_applicants("quantum")
+        assert result == []
+
+    async def test_applicants_with_cpc_sections(self, patent_db: str):
+        """Anmelder mit CPC-Codes (denormalisiert)."""
+        repo = PatentRepository(patent_db)
+        result = await repo.applicants_with_cpc_sections("quantum")
+        assert len(result) > 0
+        for r in result:
+            assert "applicant_names" in r
+            assert "cpc_codes" in r
+            assert "count" in r

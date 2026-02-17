@@ -1,24 +1,23 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import MetricCard from './MetricCard'
+import DownloadButton from './DownloadButton'
 import ChordDiagram from './ChordDiagram'
+import { exportCSV } from '../utils/export'
 
 function getHeatColor(value, max) {
   if (value === 0 || max === 0) return 'rgba(255,255,255,0.02)'
   const intensity = Math.min(value / max, 1)
-  // Coral-based gradient: dark -> warm coral
   const r = Math.round(20 + intensity * (232 - 20))
   const g = Math.round(22 + intensity * (145 - 22))
   const b = Math.round(45 + intensity * (122 - 45))
   return `rgba(${r}, ${g}, ${b}, ${0.2 + intensity * 0.8})`
 }
 
-// CPC section colors (high contrast)
 const CPC_COLORS = {
   A: '#fbbf24', B: '#e8917a', C: '#3b82f6', D: '#f0abfc',
   E: '#10b981', F: '#f97316', G: '#8b5cf6', H: '#ef4444', Y: '#6b7280',
 }
 
-// CPC section descriptions (WIPO/EPO classification)
 const CPC_SECTIONS = {
   A: 'Human Necessities',
   B: 'Operations / Transport',
@@ -33,18 +32,12 @@ const CPC_SECTIONS = {
 
 function cpcDescription(code, descriptions = {}) {
   if (!code) return ''
-  // API-provided description (class/subclass level) first
   if (descriptions[code]) return descriptions[code]
-  // Truncate long codes to try subclass (4 chars) then class (3 chars)
   if (code.length > 4 && descriptions[code.slice(0, 4)]) return descriptions[code.slice(0, 4)]
   if (code.length > 3 && descriptions[code.slice(0, 3)]) return descriptions[code.slice(0, 3)]
-  // Section fallback
   const section = code[0]
   return CPC_SECTIONS[section] || ''
 }
-
-// Fixed chart width: 15 labels * 22px + 55px label column = 385px
-const CHART_WIDTH = 385
 
 function recalcJaccard(yearData, yearMin, yearMax, topN) {
   if (!yearData?.pair_counts || !yearData?.cpc_counts) return null
@@ -111,11 +104,31 @@ export default function CpcFlowPanel({ data }) {
 
   const dataMin = year_data?.min_year || 2016
   const dataMax = year_data?.max_year || 2026
+  const yearOptions = useMemo(() => {
+    const opts = []
+    for (let y = dataMin; y <= dataMax; y++) opts.push(y)
+    return opts
+  }, [dataMin, dataMax])
 
   const [topN, setTopN] = useState(Math.min(data.labels?.length || 15, maxCpc))
   const [yearMin, setYearMin] = useState(dataMin)
   const [yearMax, setYearMax] = useState(dataMax)
   const [hovered, setHovered] = useState(null)
+
+  // Dynamic width via ResizeObserver
+  const containerRef = useRef(null)
+  const [containerWidth, setContainerWidth] = useState(0)
+
+  useEffect(() => {
+    if (!containerRef.current) return
+    const observer = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        setContainerWidth(entry.contentRect.width)
+      }
+    })
+    observer.observe(containerRef.current)
+    return () => observer.disconnect()
+  }, [])
 
   // Count CPC codes with data in selected year range
   const availableCpcCount = useMemo(() => {
@@ -179,18 +192,23 @@ export default function CpcFlowPanel({ data }) {
   const chartAreaHeight = cellSize * (2 + labels.length) + 20
   const sliderTrackLength = Math.round(chartAreaHeight * 2 / 3)
 
-  const handleMinYear = (e) => {
-    const val = Number(e.target.value)
-    setYearMin(Math.min(val, yearMax))
-  }
-  const handleMaxYear = (e) => {
-    const val = Number(e.target.value)
-    setYearMax(Math.max(val, yearMin))
-  }
+  // Calculate dynamic chart widths based on container
+  const chartMaxWidth = containerWidth > 0
+    ? Math.min(Math.floor((containerWidth - 80) / 2), 450)
+    : 385
+
+  const handleMinYear = (val) => setYearMin(Math.min(Number(val), yearMax))
+  const handleMaxYear = (val) => setYearMax(Math.max(Number(val), yearMin))
 
   return (
-    <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-6 md:col-span-2">
-      <h3 className="text-lg font-semibold mb-4">Technologiefluss (UC5)</h3>
+    <div ref={containerRef} className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-6 md:col-span-2">
+      <div className="flex items-center gap-1.5 mb-4">
+        <h3 className="text-lg font-semibold">Technologiefluss (UC5)</h3>
+        <DownloadButton onClick={() => {
+          const rows = pairs.map(p => [p.a, cpcDescription(p.a, cpc_descriptions), p.b, cpcDescription(p.b, cpc_descriptions), p.jaccard.toFixed(4)])
+          exportCSV('uc5_cpc_flow.csv', ['CPC A', 'Beschreibung A', 'CPC B', 'Beschreibung B', 'Jaccard'], rows)
+        }} />
+      </div>
 
       <div className="grid grid-cols-2 gap-3 mb-4">
         <MetricCard
@@ -205,27 +223,66 @@ export default function CpcFlowPanel({ data }) {
         />
       </div>
 
-      {/* CPC slider */}
+      {/* Controls row: CPC slider + year range */}
       {hasYearData && (
-        <div className="mb-4 p-3 bg-white/[0.04] rounded-lg">
-          <label className="text-xs text-[#5c6370] block mb-1">
-            CPC-Klassen: <span className="text-[#9ca3af]">Top {topN} von {availableCpcCount}</span>
-          </label>
-          <input
-            type="range"
-            min={2}
-            max={availableCpcCount}
-            value={topN}
-            onChange={e => setTopN(Number(e.target.value))}
-            className="w-full cursor-pointer"
-          />
+        <div className="flex flex-col sm:flex-row gap-3 mb-4">
+          <div className="flex-1 p-3 bg-white/[0.04] rounded-lg">
+            <label className="text-xs text-[#5c6370] block mb-1">
+              CPC-Klassen: <span className="text-[#9ca3af]">Top {topN} von {availableCpcCount}</span>
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="range"
+                min={2}
+                max={availableCpcCount}
+                value={topN}
+                onChange={e => setTopN(Number(e.target.value))}
+                className="flex-1 cursor-pointer"
+              />
+              <input
+                type="number"
+                min={2}
+                max={availableCpcCount}
+                value={topN}
+                onChange={e => {
+                  const v = Math.max(2, Math.min(availableCpcCount, Number(e.target.value) || 2))
+                  setTopN(v)
+                }}
+                className="w-12 px-1.5 py-0.5 bg-white/[0.04] border border-white/[0.08] rounded text-xs text-[#e5e7eb] text-center focus:outline-none focus:border-[#e8917a]/30"
+              />
+            </div>
+          </div>
+          <div className="p-3 bg-white/[0.04] rounded-lg">
+            <label className="text-xs text-[#5c6370] block mb-1">Zeitraum</label>
+            <div className="flex items-center gap-2">
+              <select
+                value={yearMin}
+                onChange={e => handleMinYear(e.target.value)}
+                className="px-2 py-0.5 bg-white/[0.04] border border-white/[0.08] rounded text-xs text-[#e5e7eb] focus:outline-none focus:border-[#e8917a]/30"
+              >
+                {yearOptions.map(y => (
+                  <option key={y} value={y} disabled={y > yearMax}>{y}</option>
+                ))}
+              </select>
+              <span className="text-[#5c6370] text-xs">—</span>
+              <select
+                value={yearMax}
+                onChange={e => handleMaxYear(e.target.value)}
+                className="px-2 py-0.5 bg-white/[0.04] border border-white/[0.08] rounded text-xs text-[#e5e7eb] focus:outline-none focus:border-[#e8917a]/30"
+              >
+                {yearOptions.map(y => (
+                  <option key={y} value={y} disabled={y < yearMin}>{y}</option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Charts row: Heatmap | Year Slider | Chord */}
+      {/* Charts row: Heatmap | Chord */}
       <div className="flex flex-col xl:flex-row xl:items-start xl:justify-evenly gap-4">
-        {/* Heatmap — fixed width container */}
-        <div className="overflow-x-auto flex justify-center" style={{ width: '100%', maxWidth: CHART_WIDTH }}>
+        {/* Heatmap */}
+        <div className="overflow-x-auto flex justify-center" style={{ width: '100%', maxWidth: chartMaxWidth }}>
           <div>
             <p className="text-xs text-[#5c6370] mb-2">CPC Co-Klassifikation (Jaccard-Index)</p>
             <div className="inline-block">
@@ -287,57 +344,8 @@ export default function CpcFlowPanel({ data }) {
           </div>
         </div>
 
-        {/* Year range slider between charts */}
-        {hasYearData && (
-          <div className="flex xl:flex-col items-center justify-center gap-2 xl:gap-1 py-2 xl:self-center">
-            <span className="text-[10px] text-[#5c6370] whitespace-nowrap">Zeitraum</span>
-            <span className="text-[10px] text-[#e8917a] font-mono whitespace-nowrap">{yearMin}</span>
-            {/* Horizontal slider (stacked layout) */}
-            <div className="dual-range-wrap xl:hidden" style={{ width: 160 }}>
-              <input
-                type="range"
-                min={dataMin}
-                max={dataMax}
-                value={yearMin}
-                onChange={handleMinYear}
-                style={{ zIndex: yearMin > dataMin + (dataMax - dataMin) / 2 ? 5 : 3 }}
-              />
-              <input
-                type="range"
-                min={dataMin}
-                max={dataMax}
-                value={yearMax}
-                onChange={handleMaxYear}
-                style={{ zIndex: yearMax < dataMin + (dataMax - dataMin) / 2 ? 5 : 3 }}
-              />
-            </div>
-            {/* Vertical slider (side-by-side layout) — rotated horizontal input */}
-            <div className="hidden xl:flex items-center justify-center mx-auto" style={{ width: 40, height: sliderTrackLength }}>
-              <div className="dual-range-wrap" style={{ width: sliderTrackLength, flexShrink: 0, transform: 'rotate(-90deg)' }}>
-                <input
-                  type="range"
-                  min={dataMin}
-                  max={dataMax}
-                  value={yearMin}
-                  onChange={handleMinYear}
-                  style={{ zIndex: yearMin > dataMin + (dataMax - dataMin) / 2 ? 5 : 3 }}
-                />
-                <input
-                  type="range"
-                  min={dataMin}
-                  max={dataMax}
-                  value={yearMax}
-                  onChange={handleMaxYear}
-                  style={{ zIndex: yearMax < dataMin + (dataMax - dataMin) / 2 ? 5 : 3 }}
-                />
-              </div>
-            </div>
-            <span className="text-[10px] text-[#e8917a] font-mono whitespace-nowrap">{yearMax}</span>
-          </div>
-        )}
-
-        {/* Chord Diagram — same fixed width as heatmap */}
-        <div style={{ width: '100%', maxWidth: CHART_WIDTH }}>
+        {/* Chord Diagram */}
+        <div style={{ width: '100%', maxWidth: chartMaxWidth }}>
           <p className="text-xs text-[#5c6370] mb-2">Chord-Diagramm</p>
           <ChordDiagram matrix={matrix} labels={labels} colors={colors} cpcSections={CPC_SECTIONS} cpcDescriptions={cpc_descriptions} />
         </div>
@@ -378,7 +386,11 @@ function PanelSkeleton({ title }) {
   return (
     <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-6 md:col-span-2 animate-pulse">
       <h3 className="text-lg font-semibold mb-4">{title}</h3>
-      <div className="h-40 bg-white/[0.04] rounded-lg" />
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="h-16 bg-white/[0.04] rounded-lg" />
+        <div className="h-16 bg-white/[0.04] rounded-lg" />
+      </div>
+      <div className="h-64 bg-white/[0.04] rounded-lg" />
     </div>
   )
 }

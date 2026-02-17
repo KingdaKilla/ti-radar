@@ -133,6 +133,10 @@ export default function ChordDiagram({ matrix, labels, colors, cpcSections = {},
         tooltip.style('opacity', 0)
       })
 
+    return () => {
+      tooltip.remove()
+      svg.selectAll('*').remove()
+    }
   }, [matrix, labels, colors])
 
   if (!matrix || matrix.length < 2) return null

@@ -288,6 +288,120 @@ class CordisRepository:
 
             return year if month >= 11 else year - 1
 
+    async def co_participation(
+        self,
+        query: str,
+        *,
+        start_year: int | None = None,
+        end_year: int | None = None,
+        limit: int = 200,
+    ) -> list[dict[str, str | int]]:
+        """Co-Partizipation: Zwei Organisationen im selben Projekt."""
+        sql = """
+            SELECT o1.name AS actor_a,
+                   o2.name AS actor_b,
+                   COUNT(DISTINCT o1.project_id) AS co_count
+            FROM projects_fts fts
+            JOIN projects p ON p.id = fts.rowid
+            JOIN organizations o1 ON o1.project_id = p.id
+            JOIN organizations o2 ON o2.project_id = o1.project_id
+                                   AND o2.id > o1.id
+            WHERE projects_fts MATCH ?
+              AND o1.name IS NOT NULL AND o2.name IS NOT NULL
+        """
+        params: list[str | int] = [query]
+
+        if start_year:
+            sql += " AND p.start_date >= ?"
+            params.append(f"{start_year}-01-01")
+        if end_year:
+            sql += " AND p.start_date <= ?"
+            params.append(f"{end_year}-12-31")
+
+        sql += " GROUP BY o1.name, o2.name"
+        sql += " ORDER BY co_count DESC LIMIT ?"
+        params.append(limit)
+
+        async with aiosqlite.connect(self._db_path) as db:
+            cursor = await db.execute(sql, params)
+            return [
+                {"actor_a": row[0], "actor_b": row[1], "co_count": row[2]}
+                for row in await cursor.fetchall()
+            ]
+
+    async def organizations_with_programme(
+        self,
+        query: str,
+        *,
+        start_year: int | None = None,
+        end_year: int | None = None,
+        limit: int = 500,
+    ) -> list[dict[str, str | int]]:
+        """Organisationen mit Foerderprogramm-Zuordnung fuer Sankey."""
+        sql = """
+            SELECT o.name, p.framework, COUNT(DISTINCT p.id) AS count
+            FROM projects_fts fts
+            JOIN projects p ON p.id = fts.rowid
+            JOIN organizations o ON o.project_id = p.id
+            WHERE projects_fts MATCH ?
+              AND o.name IS NOT NULL
+              AND p.framework IS NOT NULL
+        """
+        params: list[str | int] = [query]
+
+        if start_year:
+            sql += " AND p.start_date >= ?"
+            params.append(f"{start_year}-01-01")
+        if end_year:
+            sql += " AND p.start_date <= ?"
+            params.append(f"{end_year}-12-31")
+
+        sql += " GROUP BY o.name, p.framework ORDER BY count DESC LIMIT ?"
+        params.append(limit)
+
+        async with aiosqlite.connect(self._db_path) as db:
+            cursor = await db.execute(sql, params)
+            return [
+                {"name": row[0], "programme": row[1], "count": row[2]}
+                for row in await cursor.fetchall()
+            ]
+
+    async def top_organizations_with_country(
+        self,
+        query: str,
+        *,
+        start_year: int | None = None,
+        end_year: int | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, str | int]]:
+        """Top-Organisationen mit Land-Info fuer Tabellen-Ansicht."""
+        sql = """
+            SELECT o.name, o.country, COUNT(DISTINCT o.project_id) AS count
+            FROM projects_fts fts
+            JOIN projects p ON p.id = fts.rowid
+            JOIN organizations o ON o.project_id = p.id
+            WHERE projects_fts MATCH ?
+              AND o.name IS NOT NULL
+        """
+        params: list[str | int] = [query]
+
+        if start_year:
+            sql += " AND p.start_date >= ?"
+            params.append(f"{start_year}-01-01")
+        if end_year:
+            sql += " AND p.start_date <= ?"
+            params.append(f"{end_year}-12-31")
+
+        sql += " GROUP BY o.name, o.country ORDER BY count DESC LIMIT ?"
+        params.append(limit)
+
+        async with aiosqlite.connect(self._db_path) as db:
+            cursor = await db.execute(sql, params)
+            return [
+                {"name": row[0], "country": row[1] or "", "count": row[2]}
+                for row in await cursor.fetchall()
+            ]
+
     async def total_count(self) -> int:
         """Gesamtanzahl Projekte in der DB."""
         async with aiosqlite.connect(self._db_path) as db:

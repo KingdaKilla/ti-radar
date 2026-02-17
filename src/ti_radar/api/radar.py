@@ -37,13 +37,16 @@ async def analyze_technology(request: RadarRequest) -> RadarResponse:
     current_year = datetime.now().year
     start_year = current_year - request.years
 
-    # Alle 5 UCs parallel ausfuehren
-    results = await asyncio.gather(
-        analyze_landscape(request.technology, start_year, current_year),
-        analyze_maturity(request.technology, start_year, current_year),
-        analyze_competitive(request.technology, start_year, current_year),
-        analyze_funding(request.technology, start_year, current_year),
-        analyze_cpc_flow(request.technology, start_year, current_year),
+    # Alle 5 UCs parallel ausfuehren (30s Timeout)
+    results = await asyncio.wait_for(
+        asyncio.gather(
+            analyze_landscape(request.technology, start_year, current_year),
+            analyze_maturity(request.technology, start_year, current_year),
+            analyze_competitive(request.technology, start_year, current_year),
+            analyze_funding(request.technology, start_year, current_year),
+            analyze_cpc_flow(request.technology, start_year, current_year),
+        ),
+        timeout=30.0,
     )
 
     # Ergebnisse entpacken

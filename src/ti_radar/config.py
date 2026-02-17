@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     # Server
     host: str = "0.0.0.0"
     port: int = 8000
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
 
     # Datenbank-Pfade (relativ zum Working Directory)
     patents_db_path: str = "data/patents.db"

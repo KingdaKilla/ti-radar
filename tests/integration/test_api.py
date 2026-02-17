@@ -253,3 +253,23 @@ class TestRadarEndpoint:
         # time_series hat cumulative Feld
         if maturity["time_series"]:
             assert "cumulative" in maturity["time_series"][0]
+
+    def test_radar_competitive_has_extended_fields(self, client: TestClient):
+        """UC3 CompetitivePanel enthaelt neue Netzwerk/Sankey/Tabellen-Felder."""
+        response = client.post("/api/v1/radar", json={
+            "technology": "quantum",
+            "years": 10,
+        })
+        data = response.json()
+        comp = data["competitive"]
+        # Bestehende Felder
+        assert "hhi_index" in comp
+        assert "top_actors" in comp
+        # Neue Felder (Listen, koennen leer sein bei Testdaten)
+        assert "network_nodes" in comp
+        assert "network_edges" in comp
+        assert "sankey_nodes" in comp
+        assert "sankey_links" in comp
+        assert "full_actors" in comp
+        assert isinstance(comp["network_nodes"], list)
+        assert isinstance(comp["full_actors"], list)

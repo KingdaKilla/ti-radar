@@ -1,5 +1,8 @@
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Legend, ReferenceLine, CartesianGrid } from 'recharts'
+import { useState } from 'react'
+import { LineChart, Line, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Legend, ReferenceLine, CartesianGrid } from 'recharts'
 import MetricCard from './MetricCard'
+import DownloadButton from './DownloadButton'
+import { exportCSV } from '../utils/export'
 
 const TOOLTIP = { backgroundColor: '#141c2e', border: '1px solid rgba(232,145,122,0.2)', borderRadius: 8 }
 const TICK = { fill: '#5c6370', fontSize: 11 }
@@ -34,7 +37,14 @@ function GrowthTooltipContent({ active, payload, label }) {
   )
 }
 
+const MODES = [
+  { key: 'wachstum', label: 'Wachstum' },
+  { key: 'absolut', label: 'Absolut' },
+]
+
 export default function LandscapePanel({ data }) {
+  const [chartMode, setChartMode] = useState('wachstum')
+
   if (!data) return <PanelSkeleton title="Landschaft" />
 
   const countries = (data.top_countries || []).slice(0, 8).map(c => ({
@@ -43,10 +53,20 @@ export default function LandscapePanel({ data }) {
   }))
   const hasPublications = data.total_publications > 0
   const growthData = (data.time_series || []).filter(d => d.patents_growth !== undefined)
+  const absoluteData = data.time_series || []
 
   return (
     <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-6">
-      <h3 className="text-lg font-semibold mb-4">Landschaft (UC1)</h3>
+      <div className="flex items-center gap-1.5 mb-4">
+        <h3 className="text-lg font-semibold">Landschaft (UC1)</h3>
+        <DownloadButton onClick={() => {
+          const rows = (data.time_series || []).map(t => [
+            t.year, t.patents || 0, t.projects || 0, t.publications || 0,
+            t.patents_growth ?? '', t.projects_growth ?? '', t.publications_growth ?? '',
+          ])
+          exportCSV('uc1_landschaft.csv', ['Jahr', 'Patente', 'Projekte', 'Publikationen', 'Pat.Wachstum%', 'Proj.Wachstum%', 'Pub.Wachstum%'], rows)
+        }} />
+      </div>
 
       <div className={`grid ${hasPublications ? 'grid-cols-3' : 'grid-cols-2'} gap-3 mb-4`}>
         <MetricCard title="Patente" value={data.total_patents?.toLocaleString() || 0} subtitle="EPO DOCDB" />
@@ -56,23 +76,57 @@ export default function LandscapePanel({ data }) {
         )}
       </div>
 
-      {growthData.length > 1 && (
-        <div className="h-64 mb-4">
-          <p className="text-xs text-[#5c6370] mb-1">Wachstumsraten (% YoY)</p>
+      {(growthData.length > 1 || absoluteData.length > 1) && (
+        <div className="h-48 sm:h-56 md:h-64 mb-4">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-xs text-[#5c6370]">
+              {chartMode === 'wachstum' ? 'Wachstumsraten (% YoY)' : 'Absolute Werte'}
+            </p>
+            <div className="flex gap-0.5 p-0.5 bg-white/[0.04] rounded-md">
+              {MODES.map(m => (
+                <button
+                  key={m.key}
+                  onClick={() => setChartMode(m.key)}
+                  className={`px-2 py-0.5 text-[10px] rounded transition-all ${
+                    chartMode === m.key
+                      ? 'bg-[#e8917a]/20 text-[#e8917a]'
+                      : 'text-[#5c6370] hover:text-[#9ca3af]'
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={growthData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-              <XAxis dataKey="year" tick={TICK} tickLine={false} />
-              <YAxis tick={TICK} tickLine={false} axisLine={false} unit="%" />
-              <Tooltip content={<GrowthTooltipContent />} />
-              <ReferenceLine y={0} stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Line type="monotone" dataKey="patents_growth" stroke="#e8917a" strokeWidth={2} dot={false} name="Patente" connectNulls />
-              <Line type="monotone" dataKey="projects_growth" stroke="#f0abfc" strokeWidth={2} dot={false} name="Projekte" connectNulls />
-              {hasPublications && (
-                <Line type="monotone" dataKey="publications_growth" stroke="#fbbf24" strokeWidth={2} dot={false} name="Publikationen" connectNulls />
-              )}
-            </LineChart>
+            {chartMode === 'wachstum' ? (
+              <LineChart data={growthData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                <XAxis dataKey="year" tick={TICK} tickLine={false} />
+                <YAxis tick={TICK} tickLine={false} axisLine={false} unit="%" />
+                <Tooltip content={<GrowthTooltipContent />} />
+                <ReferenceLine y={0} stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Line type="monotone" dataKey="patents_growth" stroke="#e8917a" strokeWidth={2} dot={false} name="Patente" connectNulls />
+                <Line type="monotone" dataKey="projects_growth" stroke="#f0abfc" strokeWidth={2} dot={false} name="Projekte" connectNulls />
+                {hasPublications && (
+                  <Line type="monotone" dataKey="publications_growth" stroke="#fbbf24" strokeWidth={2} dot={false} name="Publikationen" connectNulls />
+                )}
+              </LineChart>
+            ) : (
+              <AreaChart data={absoluteData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                <XAxis dataKey="year" tick={TICK} tickLine={false} />
+                <YAxis tick={TICK} tickLine={false} axisLine={false} />
+                <Tooltip content={<GrowthTooltipContent />} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Area type="monotone" dataKey="patents" stroke="#e8917a" fill="#e8917a" fillOpacity={0.15} strokeWidth={2} name="Patente" />
+                <Area type="monotone" dataKey="projects" stroke="#f0abfc" fill="#f0abfc" fillOpacity={0.15} strokeWidth={2} name="Projekte" />
+                {hasPublications && (
+                  <Area type="monotone" dataKey="publications" stroke="#fbbf24" fill="#fbbf24" fillOpacity={0.15} strokeWidth={2} name="Publikationen" />
+                )}
+              </AreaChart>
+            )}
           </ResponsiveContainer>
         </div>
       )}
@@ -105,7 +159,11 @@ function PanelSkeleton({ title }) {
   return (
     <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-6 animate-pulse">
       <h3 className="text-lg font-semibold mb-4">{title}</h3>
-      <div className="h-40 bg-white/[0.04] rounded-lg" />
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="h-16 bg-white/[0.04] rounded-lg" />
+        <div className="h-16 bg-white/[0.04] rounded-lg" />
+      </div>
+      <div className="h-48 bg-white/[0.04] rounded-lg" />
     </div>
   )
 }

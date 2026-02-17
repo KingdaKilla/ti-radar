@@ -311,6 +311,94 @@ class PatentRepository:
                 return None
             return max_year if max_month >= 11 else max_year - 1
 
+    async def co_applicants(
+        self,
+        query: str,
+        *,
+        start_year: int | None = None,
+        end_year: int | None = None,
+        limit: int = 200,
+    ) -> list[dict[str, str | int]]:
+        """Co-Anmelder-Paare: Zwei Anmelder auf demselben Patent.
+
+        Nutzt normalisierte Tabellen (patent_applicants + applicants).
+        Gibt leere Liste zurueck wenn Tabellen nicht existieren.
+        """
+        if not await self._has_applicant_tables():
+            return []
+
+        sql = """
+            SELECT a1.normalized_name AS actor_a,
+                   a2.normalized_name AS actor_b,
+                   COUNT(DISTINCT pa1.patent_id) AS co_count
+            FROM patents_fts fts
+            JOIN patent_applicants pa1 ON pa1.patent_id = fts.rowid
+            JOIN patent_applicants pa2 ON pa2.patent_id = pa1.patent_id
+                                       AND pa2.applicant_id > pa1.applicant_id
+            JOIN applicants a1 ON a1.id = pa1.applicant_id
+            JOIN applicants a2 ON a2.id = pa2.applicant_id
+            JOIN patents p ON p.id = fts.rowid
+            WHERE patents_fts MATCH ?
+        """
+        params: list[str | int] = [query]
+
+        if start_year:
+            sql += " AND p.publication_date >= ?"
+            params.append(f"{start_year}-01-01")
+        if end_year:
+            sql += " AND p.publication_date <= ?"
+            params.append(f"{end_year}-12-31")
+
+        sql += " GROUP BY a1.normalized_name, a2.normalized_name"
+        sql += " ORDER BY co_count DESC LIMIT ?"
+        params.append(limit)
+
+        async with aiosqlite.connect(self._db_path) as db:
+            cursor = await db.execute(sql, params)
+            return [
+                {"actor_a": row[0], "actor_b": row[1], "co_count": row[2]}
+                for row in await cursor.fetchall()
+            ]
+
+    async def applicants_with_cpc_sections(
+        self,
+        query: str,
+        *,
+        start_year: int | None = None,
+        end_year: int | None = None,
+        limit: int = 10_000,
+    ) -> list[dict[str, str | int]]:
+        """Anmelder mit CPC-Codes fuer Sankey-Mapping (Actor -> CPC-Sektion).
+
+        Nutzt denormalisiertes applicant_names + cpc_codes Feld.
+        """
+        sql = """
+            SELECT p.applicant_names, p.cpc_codes, COUNT(*) AS count
+            FROM patents_fts fts
+            JOIN patents p ON p.id = fts.rowid
+            WHERE patents_fts MATCH ?
+              AND p.applicant_names IS NOT NULL AND p.applicant_names != ''
+              AND p.cpc_codes IS NOT NULL AND p.cpc_codes != ''
+        """
+        params: list[str | int] = [query]
+
+        if start_year:
+            sql += " AND p.publication_date >= ?"
+            params.append(f"{start_year}-01-01")
+        if end_year:
+            sql += " AND p.publication_date <= ?"
+            params.append(f"{end_year}-12-31")
+
+        sql += " LIMIT ?"
+        params.append(limit)
+
+        async with aiosqlite.connect(self._db_path) as db:
+            cursor = await db.execute(sql, params)
+            return [
+                {"applicant_names": row[0], "cpc_codes": row[1], "count": row[2]}
+                for row in await cursor.fetchall()
+            ]
+
     async def total_count(self) -> int:
         """Gesamtanzahl Patente in der DB."""
         async with aiosqlite.connect(self._db_path) as db:
