@@ -13,18 +13,6 @@ from ti_radar.infrastructure.repositories.patent_repo import PatentRepository
 
 logger = logging.getLogger(__name__)
 
-CPC_SECTION_NAMES: dict[str, str] = {
-    "A": "Human Necessities",
-    "B": "Operations/Transport",
-    "C": "Chemistry/Metallurgy",
-    "D": "Textiles/Paper",
-    "E": "Fixed Constructions",
-    "F": "Mech. Engineering",
-    "G": "Physics",
-    "H": "Electricity",
-    "Y": "Emerging Tech",
-}
-
 
 async def analyze_competitive(
     technology: str,
@@ -36,7 +24,7 @@ async def analyze_competitive(
 
     Kombiniert Patent-Anmelder und CORDIS-Organisationen zu einem
     Gesamtbild der wichtigsten Akteure mit HHI-Konzentration,
-    Netzwerk-Graph, Sankey-Daten und vollstaendiger Akteur-Tabelle.
+    Netzwerk-Graph und vollstaendiger Akteur-Tabelle.
     """
     settings = Settings()
     sources: list[str] = []
@@ -136,14 +124,6 @@ async def analyze_competitive(
     if network_edges:
         methods.append("Co-Partizipation-Netzwerk (Patent-Co-Anmelder + CORDIS-Projektpartner)")
 
-    # --- Sankey-Daten ---
-    sankey_nodes, sankey_links = await _build_sankey(
-        technology, start_year, end_year, effective_patent_end,
-        actor_counts, settings, warnings,
-    )
-    if sankey_links:
-        methods.append("Sankey-Fluss (Akteur → CPC-Sektion → Foerderprogramm)")
-
     # --- Vollstaendige Tabelle ---
     full_actors = _build_full_table(
         patent_actors, cordis_actors, cordis_countries,
@@ -157,8 +137,6 @@ async def analyze_competitive(
         top_3_share=round(top_3_share, 4),
         network_nodes=network_nodes,
         network_edges=network_edges,
-        sankey_nodes=sankey_nodes,
-        sankey_links=sankey_links,
         full_actors=full_actors,
     )
 
@@ -260,92 +238,6 @@ async def _build_network(
 
     return nodes, edges
 
-
-async def _build_sankey(
-    technology: str,
-    start_year: int,
-    end_year: int,
-    effective_patent_end: int,
-    actor_counts: dict[str, int],
-    settings: Settings,
-    warnings: list[str],
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Sankey-Daten: Actor -> CPC-Sektion -> Foerderprogramm."""
-    # Top 15 Akteure fuer Sankey
-    top_15 = sorted(
-        actor_counts.keys(), key=lambda n: actor_counts[n], reverse=True
-    )[:15]
-    top_set = set(top_15)
-
-    # Actor -> CPC-Sektion (aus Patenten)
-    actor_cpc: dict[tuple[str, str], int] = {}
-    if settings.patents_db_available:
-        try:
-            repo = PatentRepository(settings.patents_db_path)
-            rows = await repo.applicants_with_cpc_sections(
-                technology, start_year=start_year, end_year=effective_patent_end,
-            )
-            for row in rows:
-                names = str(row["applicant_names"]).split(",")
-                codes = str(row["cpc_codes"]).split(",")
-                sections = {c.strip()[0] for c in codes if c.strip()}
-                for name_raw in names:
-                    name = name_raw.strip().upper()
-                    if name in top_set:
-                        for sec in sections:
-                            if sec in CPC_SECTION_NAMES:
-                                key = (name, sec)
-                                actor_cpc[key] = actor_cpc.get(key, 0) + int(row["count"])
-        except Exception as e:
-            logger.warning("Sankey CPC mapping failed: %s", e)
-            warnings.append(f"Sankey CPC-Mapping fehlgeschlagen: {e}")
-
-    # Actor -> Programm (aus CORDIS)
-    actor_prog: dict[tuple[str, str], int] = {}
-    if settings.cordis_db_available:
-        try:
-            repo_c = CordisRepository(settings.cordis_db_path)
-            org_progs = await repo_c.organizations_with_programme(
-                technology, start_year=start_year, end_year=end_year,
-            )
-            for row in org_progs:
-                name = str(row["name"]).upper().strip()
-                if name in top_set:
-                    prog = str(row["programme"])
-                    key = (name, prog)
-                    actor_prog[key] = actor_prog.get(key, 0) + int(row["count"])
-        except Exception as e:
-            logger.warning("Sankey programme mapping failed: %s", e)
-            warnings.append(f"Sankey Programm-Mapping fehlgeschlagen: {e}")
-
-    if not actor_cpc and not actor_prog:
-        return [], []
-
-    # Sankey-Knoten und -Links aufbauen
-    node_ids: dict[str, int] = {}
-    sankey_nodes: list[dict[str, Any]] = []
-
-    def get_node_id(name: str, category: str) -> int:
-        key = f"{category}:{name}"
-        if key not in node_ids:
-            idx = len(sankey_nodes)
-            node_ids[key] = idx
-            sankey_nodes.append({"id": idx, "name": name, "category": category})
-        return node_ids[key]
-
-    sankey_links: list[dict[str, Any]] = []
-
-    for (actor, section), count in actor_cpc.items():
-        src = get_node_id(actor, "actor")
-        tgt = get_node_id(CPC_SECTION_NAMES.get(section, section), "cpc")
-        sankey_links.append({"source": src, "target": tgt, "value": count})
-
-    for (actor, prog), count in actor_prog.items():
-        src = get_node_id(actor, "actor")
-        tgt = get_node_id(prog, "programme")
-        sankey_links.append({"source": src, "target": tgt, "value": count})
-
-    return sankey_nodes, sankey_links
 
 
 def _build_full_table(

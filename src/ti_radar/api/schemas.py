@@ -59,10 +59,6 @@ class CompetitivePanel(BaseModel):
     network_nodes: list[dict[str, Any]] = []
     network_edges: list[dict[str, Any]] = []
 
-    # Sankey-Daten (Actor -> CPC -> Programme)
-    sankey_nodes: list[dict[str, Any]] = []
-    sankey_links: list[dict[str, Any]] = []
-
     # Vollstaendige Akteur-Tabelle
     full_actors: list[dict[str, Any]] = []
 

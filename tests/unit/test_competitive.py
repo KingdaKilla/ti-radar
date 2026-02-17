@@ -1,8 +1,6 @@
 """Unit-Tests fuer UC3 Competitive Intelligence Helper-Funktionen."""
 
-import pytest
-
-from ti_radar.use_cases.competitive import _build_full_table, _build_sankey, CPC_SECTION_NAMES
+from ti_radar.use_cases.competitive import _build_full_table
 
 
 class TestBuildFullTable:
@@ -74,15 +72,3 @@ class TestBuildFullTable:
         assert [r["rank"] for r in result] == [1, 2, 3]
 
 
-class TestCpcSectionNames:
-    """Tests fuer CPC-Sektions-Definitionen."""
-
-    def test_all_sections_present(self):
-        expected = {"A", "B", "C", "D", "E", "F", "G", "H", "Y"}
-        assert set(CPC_SECTION_NAMES.keys()) == expected
-
-    def test_section_g_is_physics(self):
-        assert CPC_SECTION_NAMES["G"] == "Physics"
-
-    def test_section_h_is_electricity(self):
-        assert CPC_SECTION_NAMES["H"] == "Electricity"

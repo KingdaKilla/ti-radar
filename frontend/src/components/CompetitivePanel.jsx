@@ -3,7 +3,6 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Cartes
 import MetricCard from './MetricCard'
 import DownloadButton from './DownloadButton'
 import ForceGraph from './ForceGraph'
-import SankeyDiagram from './SankeyDiagram'
 import ActorTable from './ActorTable'
 import { exportCSV } from '../utils/export'
 
@@ -20,7 +19,6 @@ const TOOLTIP = { backgroundColor: '#141c2e', border: '1px solid rgba(232,145,12
 const VIEWS = [
   { key: 'chart', label: 'Diagramm' },
   { key: 'network', label: 'Netzwerk' },
-  { key: 'sankey', label: 'Sankey' },
   { key: 'table', label: 'Tabelle' },
 ]
 
@@ -40,7 +38,6 @@ export default function CompetitivePanel({ data, onSelectActor }) {
   // Verfuegbare Views filtern (nur anzeigen wenn Daten vorhanden)
   const availableViews = VIEWS.filter(v => {
     if (v.key === 'network') return data.network_nodes?.length > 1
-    if (v.key === 'sankey') return data.sankey_nodes?.length > 1
     if (v.key === 'table') return data.full_actors?.length > 0
     return true
   })
@@ -118,10 +115,6 @@ export default function CompetitivePanel({ data, onSelectActor }) {
 
       {view === 'network' && (
         <ForceGraph nodes={data.network_nodes} edges={data.network_edges} />
-      )}
-
-      {view === 'sankey' && (
-        <SankeyDiagram nodes={data.sankey_nodes} links={data.sankey_links} />
       )}
 
       {view === 'table' && (
