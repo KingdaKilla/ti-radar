@@ -122,6 +122,17 @@ CREATE TABLE IF NOT EXISTS patent_applicants (
     PRIMARY KEY (patent_id, applicant_id)
 );
 CREATE INDEX IF NOT EXISTS idx_pa_applicant ON patent_applicants(applicant_id);
+
+-- Normalisierte CPC-Codes (Level 4) fuer SQL-native Jaccard-Berechnung
+CREATE TABLE IF NOT EXISTS patent_cpc (
+    patent_id  INTEGER NOT NULL,
+    cpc_code   TEXT    NOT NULL,
+    pub_year   INTEGER NOT NULL,
+    PRIMARY KEY (patent_id, cpc_code)
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS idx_pc_cpc      ON patent_cpc(cpc_code);
+CREATE INDEX IF NOT EXISTS idx_pc_year     ON patent_cpc(pub_year);
+CREATE INDEX IF NOT EXISTS idx_pc_cpc_year ON patent_cpc(cpc_code, pub_year);
 """
 
 FTS_SCHEMA_SQL = """
@@ -325,6 +336,41 @@ def _insert_applicants(
         )
 
 
+def _normalize_cpc(code: str, level: int = 4) -> str:
+    """CPC-Code auf Hierarchie-Level kuerzen (identisch zu domain/cpc_flow.py)."""
+    clean = code.strip().replace(" ", "")
+    return clean[:level] if len(clean) >= level else clean
+
+
+def _insert_cpc_codes(
+    cursor: sqlite3.Cursor,
+    patent_id: int,
+    cpc_codes_str: str,
+    pub_date: str,
+) -> None:
+    """CPC-Codes normalisiert in patent_cpc Tabelle einfuegen."""
+    if not cpc_codes_str or not pub_date or len(pub_date) < 4:
+        return
+    try:
+        pub_year = int(pub_date[:4])
+    except ValueError:
+        return
+    codes = {
+        _normalize_cpc(c)
+        for c in cpc_codes_str.split(",")
+        if c.strip()
+    }
+    # Nur Patente mit >= 2 distinkten CPC-Codes (Jaccard braucht Paare)
+    if len(codes) < 2:
+        return
+    for code in codes:
+        cursor.execute(
+            "INSERT OR IGNORE INTO patent_cpc (patent_id, cpc_code, pub_year) "
+            "VALUES (?, ?, ?)",
+            (patent_id, code, pub_year),
+        )
+
+
 def process_outer_zip(
     conn: sqlite3.Connection,
     zip_path: Path,
@@ -377,11 +423,14 @@ def process_outer_zip(
                         ),
                     )
 
-                    # Normalisierte Applicant-Tabellen befuellen
+                    # Normalisierte Tabellen befuellen
                     patent_id = cursor.lastrowid
                     if patent_id:  # nur bei tatsaechlichem INSERT (nicht IGNORE)
                         _insert_applicants(
                             cursor, patent_id, p["applicant_names"], applicant_cache,
+                        )
+                        _insert_cpc_codes(
+                            cursor, patent_id, p["cpc_codes"], p["publication_date"],
                         )
 
                 total += len(patents)

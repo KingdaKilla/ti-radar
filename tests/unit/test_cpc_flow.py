@@ -4,6 +4,8 @@ from ti_radar.domain.cpc_flow import (
     assign_colors,
     build_cooccurrence,
     build_cooccurrence_with_years,
+    build_jaccard_from_sql,
+    build_year_data_from_aggregates,
     extract_cpc_sets,
     extract_cpc_sets_with_years,
     normalize_cpc,
@@ -207,3 +209,108 @@ class TestBuildCooccurrenceWithYears:
         data = [({"A", "B", "C", "D", "E"}, 2020)]
         _, _, _, year_data = build_cooccurrence_with_years(data, top_n=3)
         assert len(year_data["all_labels"]) == 5  # All codes, not just top 3
+
+
+class TestBuildJaccardFromSql:
+    """Tests fuer Jaccard-Matrix aus SQL-Aggregaten."""
+
+    def test_basic(self) -> None:
+        top_codes = ["A", "B", "C"]
+        code_counts = {"A": 10, "B": 8, "C": 5}
+        pair_counts = [("A", "B", 6), ("A", "C", 3), ("B", "C", 2)]
+        matrix, connections = build_jaccard_from_sql(top_codes, code_counts, pair_counts)
+        assert connections == 3
+        assert len(matrix) == 3
+        # A-B: 6 / (10 + 8 - 6) = 0.5
+        assert matrix[0][1] == 0.5
+        assert matrix[1][0] == 0.5
+
+    def test_symmetry(self) -> None:
+        top_codes = ["A", "B"]
+        code_counts = {"A": 10, "B": 10}
+        pair_counts = [("A", "B", 5)]
+        matrix, _ = build_jaccard_from_sql(top_codes, code_counts, pair_counts)
+        assert matrix[0][1] == matrix[1][0]
+
+    def test_diagonal_zero(self) -> None:
+        top_codes = ["A", "B"]
+        code_counts = {"A": 10, "B": 10}
+        pair_counts = [("A", "B", 5)]
+        matrix, _ = build_jaccard_from_sql(top_codes, code_counts, pair_counts)
+        assert matrix[0][0] == 0.0
+        assert matrix[1][1] == 0.0
+
+    def test_perfect_overlap(self) -> None:
+        """Jaccard = 1.0 wenn alle Patente beide Codes haben."""
+        top_codes = ["A", "B"]
+        code_counts = {"A": 5, "B": 5}
+        pair_counts = [("A", "B", 5)]
+        matrix, _ = build_jaccard_from_sql(top_codes, code_counts, pair_counts)
+        assert matrix[0][1] == 1.0
+
+    def test_empty_input(self) -> None:
+        matrix, connections = build_jaccard_from_sql([], {}, [])
+        assert matrix == []
+        assert connections == 0
+
+    def test_single_code(self) -> None:
+        matrix, connections = build_jaccard_from_sql(["A"], {"A": 10}, [])
+        assert matrix == []
+        assert connections == 0
+
+    def test_unknown_pair_code_ignored(self) -> None:
+        top_codes = ["A", "B"]
+        code_counts = {"A": 10, "B": 10}
+        pair_counts = [("A", "B", 5), ("A", "Z", 3)]  # Z nicht in top_codes
+        matrix, connections = build_jaccard_from_sql(top_codes, code_counts, pair_counts)
+        assert connections == 1  # Nur A-B, nicht A-Z
+
+
+class TestBuildYearDataFromAggregates:
+    """Tests fuer Year-Data-Struktur aus SQL-Aggregaten."""
+
+    def test_structure(self) -> None:
+        all_codes = ["A", "B", "C"]
+        cpc_year = [("A", 2020, 10), ("B", 2020, 5), ("A", 2021, 12)]
+        pair_year = [("A", "B", 2020, 3)]
+        result = build_year_data_from_aggregates(all_codes, cpc_year, pair_year)
+        assert "min_year" in result
+        assert "max_year" in result
+        assert "all_labels" in result
+        assert "pair_counts" in result
+        assert "cpc_counts" in result
+
+    def test_year_range(self) -> None:
+        cpc_year = [("A", 2019, 5), ("A", 2022, 8)]
+        result = build_year_data_from_aggregates(["A"], cpc_year, [])
+        assert result["min_year"] == 2019
+        assert result["max_year"] == 2022
+
+    def test_cpc_counts(self) -> None:
+        cpc_year = [("A", 2020, 10), ("B", 2020, 5)]
+        result = build_year_data_from_aggregates(["A", "B"], cpc_year, [])
+        assert result["cpc_counts"]["2020"]["A"] == 10
+        assert result["cpc_counts"]["2020"]["B"] == 5
+
+    def test_pair_counts(self) -> None:
+        pair_year = [("A", "B", 2020, 3), ("A", "B", 2021, 7)]
+        result = build_year_data_from_aggregates(["A", "B"], [], pair_year)
+        assert result["pair_counts"]["2020"]["A|B"] == 3
+        assert result["pair_counts"]["2021"]["A|B"] == 7
+
+    def test_pair_key_ordering(self) -> None:
+        """Pair-Key soll alphabetisch sortiert sein (A|B, nicht B|A)."""
+        pair_year = [("B", "A", 2020, 5)]  # Ungeordnet
+        result = build_year_data_from_aggregates(["A", "B"], [], pair_year)
+        assert "A|B" in result["pair_counts"]["2020"]
+
+    def test_empty_input(self) -> None:
+        result = build_year_data_from_aggregates([], [], [])
+        assert result["min_year"] == 0
+        assert result["max_year"] == 0
+        assert result["all_labels"] == []
+
+    def test_all_labels_passed_through(self) -> None:
+        codes = ["A", "B", "C", "D", "E"]
+        result = build_year_data_from_aggregates(codes, [], [])
+        assert result["all_labels"] == codes

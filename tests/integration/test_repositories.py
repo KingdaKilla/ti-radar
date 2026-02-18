@@ -628,3 +628,175 @@ class TestPatentCoApplicants:
             assert "applicant_names" in r
             assert "cpc_codes" in r
             assert "count" in r
+
+
+@pytest.fixture()
+def patent_db_with_cpc(tmp_path: Path) -> str:
+    """Patent-DB mit normalisierter patent_cpc Tabelle fuer SQL-native Jaccard."""
+    db_path = str(tmp_path / "patents_cpc.db")
+    conn = sqlite3.connect(db_path)
+    conn.execute("""
+        CREATE TABLE patents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            publication_number TEXT,
+            country TEXT,
+            title TEXT,
+            publication_date TEXT,
+            applicant_names TEXT,
+            applicant_countries TEXT,
+            cpc_codes TEXT,
+            family_id TEXT
+        )
+    """)
+    conn.execute("""
+        CREATE VIRTUAL TABLE patents_fts USING fts5(
+            title, cpc_codes, content=patents, content_rowid=id
+        )
+    """)
+
+    # Patente mit verschiedenen CPC-Kombinationen
+    patents = [
+        ("EP3001", "DE", "Quantum computing device", "2020-03-15", "SIEMENS AG", "DE", "G06N10/00,H01L27/00", "F1"),
+        ("EP3002", "DE", "Quantum processor chip", "2020-07-20", "SIEMENS AG", "DE", "G06N10/00,H01L27/00", "F2"),
+        ("EP3003", "FR", "Quantum gate circuit", "2021-01-10", "THALES SA", "FR", "G06N10/00,G01N21/00", "F3"),
+        ("EP3004", "US", "Quantum error correction", "2021-06-01", "IBM CORP", "US", "G06N10/00,H04L9/08", "F4"),
+        ("EP3005", "DE", "Quantum key distribution", "2022-01-01", "SIEMENS AG", "DE", "H04L9/08,G06N10/00", "F5"),
+        ("EP3006", "FR", "Quantum sensor array", "2022-06-15", "THALES SA", "FR", "G01N21/00,G06N10/00,B01D15/00", "F6"),
+        ("EP3007", "DE", "Solar cell efficiency", "2020-05-01", "FRAUNHOFER", "DE", "H01L31/00,C23C14/00", "F7"),
+    ]
+
+    for p in patents:
+        conn.execute(
+            "INSERT INTO patents (publication_number, country, title, publication_date, "
+            "applicant_names, applicant_countries, cpc_codes, family_id) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)", p,
+        )
+
+    conn.execute("""
+        INSERT INTO patents_fts (rowid, title, cpc_codes)
+        SELECT id, title, cpc_codes FROM patents
+    """)
+
+    # Normalisierte patent_cpc Tabelle
+    conn.execute("""
+        CREATE TABLE patent_cpc (
+            patent_id  INTEGER NOT NULL,
+            cpc_code   TEXT    NOT NULL,
+            pub_year   INTEGER NOT NULL,
+            PRIMARY KEY (patent_id, cpc_code)
+        ) WITHOUT ROWID
+    """)
+    conn.execute("CREATE INDEX idx_pc_cpc ON patent_cpc(cpc_code)")
+    conn.execute("CREATE INDEX idx_pc_year ON patent_cpc(pub_year)")
+    conn.execute("CREATE INDEX idx_pc_cpc_year ON patent_cpc(cpc_code, pub_year)")
+
+    # CPC-Codes Level 4 normalisiert einfuegen
+    cpc_data = [
+        # EP3001 (2020): G06N, H01L
+        (1, "G06N", 2020), (1, "H01L", 2020),
+        # EP3002 (2020): G06N, H01L
+        (2, "G06N", 2020), (2, "H01L", 2020),
+        # EP3003 (2021): G06N, G01N
+        (3, "G06N", 2021), (3, "G01N", 2021),
+        # EP3004 (2021): G06N, H04L
+        (4, "G06N", 2021), (4, "H04L", 2021),
+        # EP3005 (2022): H04L, G06N
+        (5, "H04L", 2022), (5, "G06N", 2022),
+        # EP3006 (2022): G01N, G06N, B01D
+        (6, "G01N", 2022), (6, "G06N", 2022), (6, "B01D", 2022),
+        # EP3007 (2020): H01L, C23C — solar, nicht quantum
+        (7, "H01L", 2020), (7, "C23C", 2020),
+    ]
+    conn.executemany(
+        "INSERT INTO patent_cpc (patent_id, cpc_code, pub_year) VALUES (?, ?, ?)",
+        cpc_data,
+    )
+
+    conn.commit()
+    conn.close()
+    return db_path
+
+
+class TestPatentCpcTable:
+    """Tests fuer SQL-native CPC Jaccard-Berechnung via patent_cpc."""
+
+    async def test_has_cpc_table_true(self, patent_db_with_cpc: str):
+        repo = PatentRepository(patent_db_with_cpc)
+        assert await repo._has_cpc_table() is True
+
+    async def test_has_cpc_table_false(self, patent_db: str):
+        repo = PatentRepository(patent_db)
+        assert await repo._has_cpc_table() is False
+
+    async def test_compute_cpc_jaccard_basic(self, patent_db_with_cpc: str):
+        """Grundlegende Jaccard-Berechnung mit allen Quantum-Patenten."""
+        repo = PatentRepository(patent_db_with_cpc)
+        result = await repo.compute_cpc_jaccard("quantum")
+        assert "labels" in result
+        assert "matrix" in result
+        assert "total_connections" in result
+        assert "year_data" in result
+        assert "total_patents" in result
+        assert result["total_patents"] >= 6  # 6 Quantum-Patente mit CPC
+
+    async def test_compute_cpc_jaccard_labels(self, patent_db_with_cpc: str):
+        """Top-Codes muessen die haeufigsten sein (G06N dominant)."""
+        repo = PatentRepository(patent_db_with_cpc)
+        result = await repo.compute_cpc_jaccard("quantum", top_n=5)
+        assert "G06N" in result["labels"]
+        # G06N ist der haeufigste Code (6 von 6 Patenten)
+        assert result["labels"][0] == "G06N"
+
+    async def test_compute_cpc_jaccard_matrix_symmetry(self, patent_db_with_cpc: str):
+        """Matrix muss symmetrisch sein."""
+        repo = PatentRepository(patent_db_with_cpc)
+        result = await repo.compute_cpc_jaccard("quantum", top_n=5)
+        matrix = result["matrix"]
+        n = len(matrix)
+        for i in range(n):
+            for j in range(n):
+                assert matrix[i][j] == matrix[j][i]
+
+    async def test_compute_cpc_jaccard_diagonal_zero(self, patent_db_with_cpc: str):
+        """Diagonale muss 0.0 sein."""
+        repo = PatentRepository(patent_db_with_cpc)
+        result = await repo.compute_cpc_jaccard("quantum", top_n=5)
+        matrix = result["matrix"]
+        for i in range(len(matrix)):
+            assert matrix[i][i] == 0.0
+
+    async def test_compute_cpc_jaccard_year_filter(self, patent_db_with_cpc: str):
+        """Jahresfilter muss die Ergebnisse einschraenken."""
+        repo = PatentRepository(patent_db_with_cpc)
+        result_all = await repo.compute_cpc_jaccard("quantum")
+        result_2020 = await repo.compute_cpc_jaccard("quantum", start_year=2020, end_year=2020)
+        assert result_2020["total_patents"] < result_all["total_patents"]
+
+    async def test_compute_cpc_jaccard_year_data(self, patent_db_with_cpc: str):
+        """Year-Data-Struktur muss alle benoetigten Felder haben."""
+        repo = PatentRepository(patent_db_with_cpc)
+        result = await repo.compute_cpc_jaccard("quantum")
+        year_data = result["year_data"]
+        assert "min_year" in year_data
+        assert "max_year" in year_data
+        assert "all_labels" in year_data
+        assert "pair_counts" in year_data
+        assert "cpc_counts" in year_data
+        assert year_data["min_year"] == 2020
+        assert year_data["max_year"] == 2022
+
+    async def test_compute_cpc_jaccard_no_results(self, patent_db_with_cpc: str):
+        """Nicht-existente Technologie gibt leeres Ergebnis."""
+        repo = PatentRepository(patent_db_with_cpc)
+        result = await repo.compute_cpc_jaccard("nonexistent_xyz")
+        assert result["labels"] == []
+        assert result["matrix"] == []
+        assert result["total_patents"] == 0
+
+    async def test_compute_cpc_jaccard_values_in_range(self, patent_db_with_cpc: str):
+        """Jaccard-Werte muessen zwischen 0.0 und 1.0 liegen."""
+        repo = PatentRepository(patent_db_with_cpc)
+        result = await repo.compute_cpc_jaccard("quantum", top_n=5)
+        for row in result["matrix"]:
+            for val in row:
+                assert 0.0 <= val <= 1.0

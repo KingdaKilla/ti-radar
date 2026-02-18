@@ -90,6 +90,32 @@ Migration ausfuehren: `python scripts/migrate_applicants.py` (inkrementell, sich
 
 `PatentRepository.top_applicants()` nutzt automatisch die normalisierten Tabellen wenn vorhanden, sonst Fallback auf `patents.applicant_names`.
 
+### Tabelle: patent_cpc (normalisiert, optional)
+
+Wird durch `scripts/migrate_cpc.py` erzeugt. Enthaelt normalisierte CPC-Codes (Level 4) pro Patent mit Publikationsjahr. Ermoeglicht SQL-native Jaccard-Berechnung ohne Sampling.
+
+```sql
+CREATE TABLE patent_cpc (
+    patent_id  INTEGER NOT NULL,
+    cpc_code   TEXT    NOT NULL,
+    pub_year   INTEGER NOT NULL,
+    PRIMARY KEY (patent_id, cpc_code)
+) WITHOUT ROWID;
+
+CREATE INDEX idx_pc_cpc      ON patent_cpc(cpc_code);
+CREATE INDEX idx_pc_year     ON patent_cpc(pub_year);
+CREATE INDEX idx_pc_cpc_year ON patent_cpc(cpc_code, pub_year);
+```
+
+- CPC-Codes auf Level 4 normalisiert (z.B. "H01L33/00" → "H01L")
+- `pub_year` aus `patents.publication_date` extrahiert
+- Nur Patente mit >= 2 verschiedenen CPC-Codes (Level 4)
+- `WITHOUT ROWID` fuer kompakte Speicherung (Clustered Index auf PK)
+
+Migration ausfuehren: `python scripts/migrate_cpc.py` (idempotent, sicher nach EPO-Re-Import).
+
+`PatentRepository.compute_cpc_jaccard()` nutzt automatisch die normalisierte Tabelle wenn vorhanden, sonst Fallback auf Python-basierte Berechnung mit Sampling.
+
 ## cordis.db
 
 ### Tabelle: projects

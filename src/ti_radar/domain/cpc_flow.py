@@ -184,6 +184,97 @@ def build_cooccurrence_with_years(
     return top_codes, matrix, total_connections, year_data
 
 
+def build_jaccard_from_sql(
+    top_codes: list[str],
+    code_counts: dict[str, int],
+    pair_counts: list[tuple[str, str, int]],
+) -> tuple[list[list[float]], int]:
+    """Jaccard-Matrix aus SQL-Aggregaten berechnen.
+
+    Args:
+        top_codes: Sortierte CPC-Codes (Top-N).
+        code_counts: {cpc_code: patent_count} fuer jeden Top-Code.
+        pair_counts: [(code_a, code_b, co_count), ...] Co-Occurrence-Paare.
+
+    Returns:
+        (jaccard_matrix, total_connections)
+    """
+    n = len(top_codes)
+    if n < 2:
+        return [], 0
+
+    code_index = {code: i for i, code in enumerate(top_codes)}
+    matrix: list[list[float]] = [[0.0] * n for _ in range(n)]
+    total_connections = 0
+
+    for code_a, code_b, co_count in pair_counts:
+        if co_count < 1:
+            continue
+        ia = code_index.get(code_a)
+        ib = code_index.get(code_b)
+        if ia is None or ib is None:
+            continue
+        count_a = code_counts.get(code_a, 0)
+        count_b = code_counts.get(code_b, 0)
+        union = count_a + count_b - co_count
+        jaccard = co_count / union if union > 0 else 0.0
+        rounded = round(jaccard, 4)
+        matrix[ia][ib] = rounded
+        matrix[ib][ia] = rounded
+        total_connections += 1
+
+    return matrix, total_connections
+
+
+def build_year_data_from_aggregates(
+    all_codes: list[str],
+    cpc_year_counts: list[tuple[str, int, int]],
+    pair_year_counts: list[tuple[str, str, int, int]],
+) -> dict[str, Any]:
+    """Year-Data-Struktur aus SQL-Aggregaten aufbauen.
+
+    Konvertiert die SQL-Ergebnisse in das Format das das Frontend erwartet
+    (identisch zu build_cooccurrence_with_years).
+
+    Args:
+        all_codes: Alle CPC-Codes sortiert nach Haeufigkeit.
+        cpc_year_counts: [(cpc_code, pub_year, count), ...] pro Code und Jahr.
+        pair_year_counts: [(code_a, code_b, pub_year, co_count), ...] pro Paar und Jahr.
+
+    Returns:
+        dict mit min_year, max_year, all_labels, pair_counts, cpc_counts.
+    """
+    years_seen: set[int] = set()
+    cpc_counts_by_year: dict[int, dict[str, int]] = {}
+    pair_counts_by_year: dict[int, dict[str, int]] = {}
+
+    for code, year, count in cpc_year_counts:
+        years_seen.add(year)
+        if year not in cpc_counts_by_year:
+            cpc_counts_by_year[year] = {}
+        cpc_counts_by_year[year][code] = count
+
+    for code_a, code_b, year, co_count in pair_year_counts:
+        years_seen.add(year)
+        if year not in pair_counts_by_year:
+            pair_counts_by_year[year] = {}
+        key = f"{code_a}|{code_b}" if code_a < code_b else f"{code_b}|{code_a}"
+        pair_counts_by_year[year][key] = co_count
+
+    sorted_years = sorted(years_seen)
+    return {
+        "min_year": sorted_years[0] if sorted_years else 0,
+        "max_year": sorted_years[-1] if sorted_years else 0,
+        "all_labels": all_codes,
+        "pair_counts": {
+            str(y): pair_counts_by_year.get(y, {}) for y in sorted_years
+        },
+        "cpc_counts": {
+            str(y): cpc_counts_by_year.get(y, {}) for y in sorted_years
+        },
+    }
+
+
 # Farben fuer CPC-Sektionen (A-H + Y)
 CPC_COLORS: dict[str, str] = {
     "A": "#ef4444",  # rot
