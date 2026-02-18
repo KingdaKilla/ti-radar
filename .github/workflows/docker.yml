@@ -1,0 +1,32 @@
+name: Docker Build
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'Dockerfile.*'
+      - 'docker-compose.yml'
+      - 'frontend/nginx.conf'
+      - '.dockerignore'
+      - '.github/workflows/docker.yml'
+  pull_request:
+    branches: [master]
+    paths:
+      - 'Dockerfile.*'
+      - 'docker-compose.yml'
+      - 'frontend/nginx.conf'
+      - '.dockerignore'
+      - '.github/workflows/docker.yml'
+
+jobs:
+  build:
+    name: Docker Compose Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build all services (no start)
+        run: docker compose build
+
+      - name: Verify images exist
+        run: docker images | grep -E "backend|frontend"
