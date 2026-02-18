@@ -70,6 +70,7 @@ Fuehrt alle acht Use Cases parallel aus und liefert ein komplettes Dashboard-Obj
   "funding": {
     "total_funding_eur": 45000000.0,
     "funding_cagr": 12.3,
+    "funding_cagr_period": "2016\u20132024",
     "avg_project_size": 3500000.0,
     "by_programme": [...],
     "time_series": [...],

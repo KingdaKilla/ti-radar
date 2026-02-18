@@ -36,7 +36,9 @@ TI-Radar implementiert ein Technology Intelligence Dashboard als Single-Page App
 │                classify_maturity_phase(), merge_country_data() │
 │  scurve.py  ── S-Curve: logistic + gompertz, fit_best_model() │
 │  cpc_flow.py── CPC-Co-Klassifikation, Jaccard-Index           │
+│  sampling.py── Stratifizierte Stichprobenziehung              │
 │  cpc_descriptions.py ── CPC-Klassen/Subklassen-Bibliothek     │
+│  api_health.py ── JWT-Ablaufpruefung, Runtime-Failures        │
 ├──────────────────────────────────────────────────────────────┤
 │              Infrastruktur-Schicht (infrastructure/)          │
 │  repositories/patent_repo.py ── SQLite patents.db (FTS5)      │
@@ -136,3 +138,13 @@ Zentral via `config.py` (Pydantic Settings):
 | `OPENAIRE_ACCESS_TOKEN` | `""` | OpenAIRE API Token |
 
 Verfuegbarkeit wird dynamisch via `@property` geprueft (`patents_db_available`, `cordis_db_available`).
+
+## CI/CD
+
+Drei GitHub Actions Workflows (`.github/workflows/`) sichern die Code-Qualitaet:
+
+- **Backend CI** (`backend.yml`): 3 parallele Jobs — Ruff Lint, Mypy Type Check, Pytest mit Coverage-Threshold (60%). Triggert bei Aenderungen in `src/`, `tests/`, `pyproject.toml`.
+- **Frontend CI** (`frontend.yml`): Build-Verifikation via `npm ci` + `vite build`. Triggert bei Aenderungen in `frontend/`.
+- **Docker Build** (`docker.yml`): `docker compose build` ohne Start. Triggert nur bei Aenderungen an `Dockerfile.*`, `docker-compose.yml`.
+
+Keine Secrets erforderlich — alle Tests mocken externe APIs.

@@ -46,6 +46,16 @@ python scripts/import_cordis_bulk.py \
   --output "data/cordis.db"
 ```
 
+### CPC-Normalisierung (optional, empfohlen)
+
+Erstellt eine normalisierte `patent_cpc`-Tabelle fuer SQL-native Jaccard-Berechnung (UC5). Ohne diese Migration funktioniert UC5 trotzdem, nutzt aber einen Python-Fallback mit 10.000-Patent-Stichprobe.
+
+```bash
+python scripts/migrate_cpc.py --db data/patents.db
+```
+
+Das Script ist idempotent (DROP + CREATE) und benoetigt ~20 Minuten fuer die volle Datenbank (~330M Patente). Bei `patents_mini.db` dauert es nur wenige Sekunden.
+
 ## Starten
 
 ### Backend (Port 8000)
@@ -89,6 +99,18 @@ pytest tests/integration/ -v
 ruff check src/
 mypy src/
 ```
+
+## CI/CD (GitHub Actions)
+
+Drei Workflows unter `.github/workflows/`:
+
+| Workflow | Trigger (Pfad-Filter) | Jobs |
+|----------|----------------------|------|
+| `backend.yml` | `src/`, `tests/`, `pyproject.toml` | Ruff Lint, Mypy Type Check, Pytest (Coverage >= 60%) |
+| `frontend.yml` | `frontend/` | `npm ci` + `vite build` + Verify `dist/index.html` |
+| `docker.yml` | `Dockerfile.*`, `docker-compose.yml` | `docker compose build` |
+
+Alle Workflows laufen auf `ubuntu-latest` bei Push/PR auf `master`. Keine GitHub Secrets noetig — Tests mocken externe APIs, Datenbanken sind nicht in CI erforderlich.
 
 ## Betrieb ohne Datenbanken
 
