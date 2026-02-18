@@ -133,7 +133,7 @@ Fuehrt alle acht Use Cases parallel aus und liefert ein komplettes Dashboard-Obj
       {"year": 2020, "total_actors": 120, "new_entrant_rate": 0.35, "persistence_rate": 0.65}
     ],
     "technology_breadth": [
-      {"year": 2020, "unique_cpc_sections": 6}
+      {"year": 2020, "unique_cpc_sections": 6, "unique_cpc_subclasses": 42}
     ]
   },
   "explainability": {
@@ -141,7 +141,8 @@ Fuehrt alle acht Use Cases parallel aus und liefert ein komplettes Dashboard-Obj
     "methods": ["FTS5-Volltextsuche", "CAGR", "HHI-Index", "S-Curve", "h-Index", "Jaccard"],
     "deterministic": true,
     "warnings": [],
-    "query_time_ms": 60
+    "query_time_ms": 60,
+    "data_complete_until": 2024
   }
 }
 ```
@@ -230,3 +231,4 @@ Jede Radar-Response enthaelt ein `explainability`-Objekt:
 | `deterministic` | `bool` | `true` = keine LLM-Komponente, reproduzierbar |
 | `warnings` | `string[]` | Datenqualitaets-Warnungen |
 | `query_time_ms` | `int` | Gesamte Antwortzeit in Millisekunden |
+| `data_complete_until` | `int \| null` | Letztes Jahr mit vollstaendigen Daten (z.B. 2024) |

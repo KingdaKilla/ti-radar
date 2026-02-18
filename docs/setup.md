@@ -12,8 +12,9 @@
 
 ```bash
 pip install -e ".[dev]"
-cp .env.example .env
 ```
+
+Umgebungsvariablen werden ueber eine `.env`-Datei im Projektverzeichnis konfiguriert (siehe Abschnitt "Umgebungsvariablen"). API-Keys sind optional — die Hauptdaten kommen aus lokalen SQLite-Datenbanken.
 
 ### Frontend
 

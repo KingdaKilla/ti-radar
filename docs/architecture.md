@@ -6,7 +6,7 @@ TI-Radar implementiert ein Technology Intelligence Dashboard als Single-Page App
 
 ### Architekturprinzipien
 
-1. **Deterministische Analyse**: Alle Berechnungen (CAGR, HHI, Martini-John, S-Curve-Fit, Jaccard, h-Index) sind reine Funktionen ohne Seiteneffekte — reproduzierbar, auditierbar, testbar.
+1. **Deterministische Analyse**: Alle Berechnungen (CAGR, HHI, S-Curve-Fit, Jaccard, h-Index) sind reine Funktionen ohne Seiteneffekte — reproduzierbar, auditierbar, testbar.
 2. **Graceful Degradation**: Jeder Use Case laeuft unabhaengig. Faellt eine Datenquelle aus (z.B. Semantic Scholar Rate Limit), liefern die anderen Use Cases trotzdem Ergebnisse.
 3. **Explainability by Design**: Jede Response enthaelt Metadaten ueber verwendete Quellen, Methoden und Warnungen (EU AI Act Art. 50, Limited Risk).
 4. **Lokale Daten zuerst**: 187 GB EPO-Patentdaten und CORDIS-Projekte in lokalen SQLite-Datenbanken — keine API-Abhaengigkeit fuer Kernfunktionalitaet.
@@ -32,7 +32,8 @@ TI-Radar implementiert ein Technology Intelligence Dashboard als Single-Page App
 ├──────────────────────────────────────────────────────────────┤
 │                   Domain-Schicht (domain/)                     │
 │  metrics.py ── Reine Funktionen: cagr(), hhi_index(),         │
-│                martini_john_ratio(), classify_maturity_phase() │
+│                hhi_concentration_level(), s_curve_confidence(),│
+│                classify_maturity_phase(), merge_country_data() │
 │  scurve.py  ── S-Curve: logistic + gompertz, fit_best_model() │
 │  cpc_flow.py── CPC-Co-Klassifikation, Jaccard-Index           │
 │  cpc_descriptions.py ── CPC-Klassen/Subklassen-Bibliothek     │
@@ -111,6 +112,7 @@ App.jsx
 │   ├── GeographicPanel.jsx      ── UC6: Laender-BarChart (Europa-Fokus) + Kooperationen
 │   ├── ResearchImpactPanel.jsx  ── UC7: Zitationstrend + Papers + Venues
 │   └── TemporalPanel.jsx        ── UC8: Akteur-Dynamik + Programme + Breite
+├── ChartTooltip.jsx             ── Shared Tooltip mit Datenvollstaendigkeit
 ├── ForceGraph.jsx               ── D3.js Force-Directed (Akteur-Netzwerk)
 ├── ChordDiagram.jsx             ── D3.js Chord-Diagramm (CPC-Verflechtung)
 ├── ActorTable.jsx               ── Sortierbare Datentabelle (UC3)
