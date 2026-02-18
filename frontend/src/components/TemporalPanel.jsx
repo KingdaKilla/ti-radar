@@ -185,8 +185,8 @@ export default function TemporalPanel({ data, dataCompleteUntil }) {
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={breadth}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-              {dataCompleteUntil && <ReferenceArea x1={dataCompleteUntil + 1} fill="#5c6370" fillOpacity={0.08} />}
-              {dataCompleteUntil && <ReferenceLine x={dataCompleteUntil + 1} stroke="#5c6370" strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: 'unvollst.', fill: '#5c6370', fontSize: 9, position: 'top' }} />}
+              {dataCompleteUntil && <ReferenceArea x1={dataCompleteUntil + 1} yAxisId="left" fill="#5c6370" fillOpacity={0.08} />}
+              {dataCompleteUntil && <ReferenceLine x={dataCompleteUntil + 1} yAxisId="left" stroke="#5c6370" strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: 'unvollst.', fill: '#5c6370', fontSize: 9, position: 'top' }} />}
               <XAxis dataKey="year" tick={{ fill: '#5c6370', fontSize: 10 }} tickLine={false} />
               <YAxis yAxisId="left" tick={{ fill: '#5c6370', fontSize: 10 }} tickLine={false} axisLine={false} />
               <YAxis yAxisId="right" orientation="right" tick={{ fill: '#5c6370', fontSize: 10 }} tickLine={false} axisLine={false} />
