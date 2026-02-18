@@ -57,12 +57,13 @@ async def analyze_landscape(
                 f"Patent-Daten bis {effective_patent_end} vollstaendig "
                 f"(ab {effective_patent_end + 1} unvollstaendig)"
             )
+        end = effective_patent_end
         tasks.append(asyncio.create_task(
-            patent_repo.count_by_year(technology, start_year=start_year, end_year=effective_patent_end),
+            patent_repo.count_by_year(technology, start_year=start_year, end_year=end),
             name="patent_years",
         ))
         tasks.append(asyncio.create_task(
-            patent_repo.count_by_country(technology, start_year=start_year, end_year=effective_patent_end),
+            patent_repo.count_by_country(technology, start_year=start_year, end_year=end),
             name="patent_countries",
         ))
     else:

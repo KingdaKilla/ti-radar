@@ -190,7 +190,8 @@ def _normalize_case(term: str) -> str:
     words = term.split()
     result: list[str] = []
     for word in words:
-        if word.isupper() and len(word) <= 4 and not word.isdigit() and word.lower() not in _STOPWORDS:
+        is_acronym = word.isupper() and len(word) <= 4 and not word.isdigit()
+        if is_acronym and word.lower() not in _STOPWORDS:
             # Wahrscheinlich Akronym (LED, AI, CPC, IoT) -> gross lassen
             result.append(word)
         else:

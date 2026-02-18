@@ -94,10 +94,14 @@ async def analyze_temporal(
     latest_persistence = entrant_persistence[-1]["persistence_rate"] if entrant_persistence else 0.0
 
     programme_counts: dict[str, int] = {}
-    for row in instrument_data:
-        scheme = str(row.get("scheme", ""))
-        programme_counts[scheme] = programme_counts.get(scheme, 0) + int(row.get("count", 0))
-    dominant = max(programme_counts, key=programme_counts.get, default="") if programme_counts else ""
+    for instr_row in instrument_data:
+        scheme = str(instr_row.get("scheme", ""))
+        count_val = int(instr_row.get("count", 0))
+        programme_counts[scheme] = programme_counts.get(scheme, 0) + count_val
+    dominant = (
+        max(programme_counts, key=lambda k: programme_counts[k], default="")
+        if programme_counts else ""
+    )
 
     methods.append("Akteur-Dynamik (New Entrant Rate, Persistence Rate)")
     if tech_breadth:

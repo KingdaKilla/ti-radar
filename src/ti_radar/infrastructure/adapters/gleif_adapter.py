@@ -47,7 +47,8 @@ class GleifAdapter:
         """Check cache. Returns dict if hit, 'NEGATIVE' if negative cache, None if miss/expired."""
         conn = sqlite3.connect(self._cache_db)
         cursor = conn.execute(
-            "SELECT lei, legal_name, country, city, resolved_at FROM gleif_cache WHERE raw_name = ?",
+            "SELECT lei, legal_name, country, city, resolved_at "
+            "FROM gleif_cache WHERE raw_name = ?",
             (name.upper().strip(),),
         )
         row = cursor.fetchone()
@@ -76,19 +77,18 @@ class GleifAdapter:
         now = datetime.now().isoformat()
         key = name.upper().strip()
 
+        sql = (
+            "INSERT OR REPLACE INTO gleif_cache "
+            "(raw_name, lei, legal_name, country, city, resolved_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)"
+        )
         if result:
-            conn.execute(
-                "INSERT OR REPLACE INTO gleif_cache (raw_name, lei, legal_name, country, city, resolved_at) "
-                "VALUES (?, ?, ?, ?, ?, ?)",
-                (key, result.get("lei"), result.get("legal_name"),
-                 result.get("country"), result.get("city"), now),
-            )
+            conn.execute(sql, (
+                key, result.get("lei"), result.get("legal_name"),
+                result.get("country"), result.get("city"), now,
+            ))
         else:
-            conn.execute(
-                "INSERT OR REPLACE INTO gleif_cache (raw_name, lei, legal_name, country, city, resolved_at) "
-                "VALUES (?, NULL, NULL, NULL, NULL, ?)",
-                (key, now),
-            )
+            conn.execute(sql, (key, None, None, None, None, now))
         conn.commit()
         conn.close()
 

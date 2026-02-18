@@ -6,7 +6,6 @@ Datenquelle: WIPO CPC Scheme (oeffentlich), reduziert auf die ~200 haeufigsten C
 
 from __future__ import annotations
 
-
 # --- CPC Sektionen (Level 1) ---
 
 CPC_SECTION_DESCRIPTIONS: dict[str, str] = {
@@ -318,7 +317,7 @@ CPC_SUBCLASS_DESCRIPTIONS: dict[str, str] = {
     "H02M": "Apparatus for Conversion Between AC and AC, or AC and DC",
     "H02N": "Electric Machines Not Otherwise Provided For",
     "H02P": "Control or Regulation of Electric Motors",
-    "H02S": "Generation of Electric Power by Conversion of Infrared/Light/UV Radiation (Photovoltaics)",
+    "H02S": "Generation of Electric Power by Conversion of IR/Light/UV (Photovoltaics)",
     "H03H": "Impedance Networks (Filters, Resonators)",
     "H03K": "Pulse Technique",
     "H03M": "Coding; Decoding; Code Conversion",

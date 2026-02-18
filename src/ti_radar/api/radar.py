@@ -6,13 +6,22 @@ import asyncio
 import logging
 import time
 from datetime import datetime
+from typing import cast
 
 from fastapi import APIRouter
 
 from ti_radar.api.schemas import (
+    CompetitivePanel,
+    CpcFlowPanel,
     ExplainabilityMetadata,
+    FundingPanel,
+    GeographicPanel,
+    LandscapePanel,
+    MaturityPanel,
     RadarRequest,
     RadarResponse,
+    ResearchImpactPanel,
+    TemporalPanel,
 )
 from ti_radar.config import Settings
 from ti_radar.domain.api_health import check_jwt_expiry, detect_runtime_failures
@@ -118,14 +127,14 @@ async def analyze_technology(request: RadarRequest) -> RadarResponse:
     return RadarResponse(
         technology=request.technology,
         analysis_period=f"{start_year}-{current_year}",
-        landscape=landscape,
-        maturity=maturity,
-        competitive=competitive,
-        funding=funding,
-        cpc_flow=cpc_flow,
-        geographic=geographic,
-        research_impact=research_impact,
-        temporal=temporal,
+        landscape=cast(LandscapePanel, landscape),
+        maturity=cast(MaturityPanel, maturity),
+        competitive=cast(CompetitivePanel, competitive),
+        funding=cast(FundingPanel, funding),
+        cpc_flow=cast(CpcFlowPanel, cpc_flow),
+        geographic=cast(GeographicPanel, geographic),
+        research_impact=cast(ResearchImpactPanel, research_impact),
+        temporal=cast(TemporalPanel, temporal),
         explainability=ExplainabilityMetadata(
             sources_used=all_sources,
             methods=all_methods,
