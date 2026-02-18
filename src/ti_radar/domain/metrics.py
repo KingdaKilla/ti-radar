@@ -93,7 +93,7 @@ def classify_maturity_phase(
             return "Growing", "Wachsend", round(confidence, 2)
         if maturity_percent < 90.0:
             return "Mature", "Ausgereift", round(confidence, 2)
-        return "Declining", "Sättigung", round(confidence, 2)
+        return "Saturation", "Sättigung", round(confidence, 2)
 
     # Fallback: Wachstumsmuster-Heuristik
     if not yearly_counts or len(yearly_counts) < 3:

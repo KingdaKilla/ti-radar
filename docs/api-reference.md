@@ -141,6 +141,9 @@ Fuehrt alle acht Use Cases parallel aus und liefert ein komplettes Dashboard-Obj
     "methods": ["FTS5-Volltextsuche", "CAGR", "HHI-Index", "S-Curve", "h-Index", "Jaccard"],
     "deterministic": true,
     "warnings": [],
+    "api_alerts": [
+      {"source": "OpenAIRE", "level": "warning", "message": "OpenAIRE-Token laeuft in 1.5 Tagen ab"}
+    ],
     "query_time_ms": 60,
     "data_complete_until": 2024
   }
@@ -230,5 +233,14 @@ Jede Radar-Response enthaelt ein `explainability`-Objekt:
 | `methods` | `string[]` | Angewandte Analyse-Methoden |
 | `deterministic` | `bool` | `true` = keine LLM-Komponente, reproduzierbar |
 | `warnings` | `string[]` | Datenqualitaets-Warnungen |
+| `api_alerts` | `ApiAlert[]` | API-Key/Token-Status (JWT-Ablauf, Runtime-Fehler) |
 | `query_time_ms` | `int` | Gesamte Antwortzeit in Millisekunden |
 | `data_complete_until` | `int \| null` | Letztes Jahr mit vollstaendigen Daten (z.B. 2024) |
+
+### ApiAlert
+
+| Feld | Typ | Beschreibung |
+|------|-----|--------------|
+| `source` | `string` | API-Name (z.B. "OpenAIRE", "Semantic Scholar") |
+| `level` | `string` | `"warning"` (gelb) oder `"error"` (rot) |
+| `message` | `string` | Beschreibung des Problems |

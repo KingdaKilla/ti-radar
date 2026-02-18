@@ -89,14 +89,21 @@ async def analyze_funding(
     total_projects = sum(int(f["count"] or 0) for f in funding_years)
     avg_size = total_funding / total_projects if total_projects > 0 else 0.0
 
-    # CAGR der Foerderung
+    # CAGR der Foerderung (Kalenderjahr-Spanne)
     funding_cagr = 0.0
     non_zero = [f for f in funding_years if float(f["funding"] or 0) > 0]
     if len(non_zero) >= 2:
         first = float(non_zero[0]["funding"] or 0)
         last = float(non_zero[-1]["funding"] or 0)
-        funding_cagr = cagr(first, last, len(non_zero) - 1)
-        methods.append(f"Foerder-CAGR ueber {len(non_zero)} Jahre")
+        first_year = int(non_zero[0]["year"])
+        last_year = int(non_zero[-1]["year"])
+        year_span = last_year - first_year
+        if year_span > 0:
+            funding_cagr = cagr(first, last, year_span)
+            methods.append(
+                f"Foerder-CAGR ueber {year_span} Jahre "
+                f"({first_year}-{last_year})"
+            )
 
     # Zeitreihe formatieren
     time_series: list[dict[str, Any]] = []

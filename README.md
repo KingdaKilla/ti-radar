@@ -5,7 +5,7 @@ Ein interaktives Dashboard zur Analyse von Technologie-Reifegrad, Wettbewerbslan
 ## Features
 
 - **UC1 — Technologie-Landschaft**: Patentzahlen nach Jahr und Land, CPC-Klassifikations-Heatmap mit Chord-Diagramm
-- **UC2 — Reifegrad-Analyse**: S-Kurven-Fit (Logistic + Gompertz), automatische Phasenklassifikation (Emerging/Growing/Mature/Declining)
+- **UC2 — Reifegrad-Analyse**: S-Kurven-Fit (Logistic + Gompertz), automatische Phasenklassifikation (Emerging/Growing/Mature/Saturation)
 - **UC3 — Wettbewerbs-Analyse**: Top-Anmelder, HHI-Konzentrationsindex, Netzwerk-Graph, Akteur-Tabelle
 - **UC4 — Foerderungs-Radar**: CORDIS-Foerdersummen (FP7/H2020/Horizon Europe), OpenAIRE-Publikationszahlen
 - **UC5 — Technologiefluss**: CPC-Co-Klassifikations-Heatmap, Chord-Diagramm, Jaccard-Index

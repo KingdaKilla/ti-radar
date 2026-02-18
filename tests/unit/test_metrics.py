@@ -210,9 +210,9 @@ class TestClassifyMaturitySCurve:
         assert phase == "Mature"
         assert phase_de == "Ausgereift"
 
-    def test_declining_phase(self):
+    def test_saturation_phase(self):
         phase, phase_de, _ = classify_maturity_phase([1, 2, 3], maturity_percent=95.0)
-        assert phase == "Declining"
+        assert phase == "Saturation"
         assert phase_de == "Sättigung"
 
     def test_boundary_10(self):
@@ -231,7 +231,7 @@ class TestClassifyMaturitySCurve:
         phase, _, _ = classify_maturity_phase([1, 2, 3], maturity_percent=89.9)
         assert phase == "Mature"
         phase, _, _ = classify_maturity_phase([1, 2, 3], maturity_percent=90.0)
-        assert phase == "Declining"
+        assert phase == "Saturation"
 
     def test_confidence_from_r_squared(self):
         _, _, conf = classify_maturity_phase(

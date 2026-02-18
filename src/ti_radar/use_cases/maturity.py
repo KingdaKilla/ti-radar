@@ -96,12 +96,20 @@ async def analyze_maturity(
     fit_years = all_years[:fit_end_idx]
     fit_cumulative = cumulative[:fit_end_idx]
 
-    # CAGR (ueber Patent-Zeitreihe, nicht-null Werte)
-    non_zero = [c for c in fit_combined if c > 0]
+    # CAGR (ueber Patent-Zeitreihe, Kalenderjahr-Spanne)
+    non_zero_indices = [i for i, c in enumerate(fit_combined) if c > 0]
     growth_rate = 0.0
-    if len(non_zero) >= 2:
-        growth_rate = cagr(non_zero[0], non_zero[-1], len(non_zero) - 1)
-        methods.append(f"CAGR ueber {len(non_zero)} Jahre")
+    if len(non_zero_indices) >= 2:
+        first_idx, last_idx = non_zero_indices[0], non_zero_indices[-1]
+        year_span = fit_years[last_idx] - fit_years[first_idx]
+        if year_span > 0:
+            growth_rate = cagr(
+                fit_combined[first_idx], fit_combined[last_idx], year_span,
+            )
+            methods.append(
+                f"CAGR ueber {year_span} Jahre "
+                f"({fit_years[first_idx]}-{fit_years[last_idx]})"
+            )
 
     # S-Curve-Fit auf kumulative Daten (nur vollstaendige Jahre)
     # Mindestens 30 kumulative Patente fuer sinnvollen Fit

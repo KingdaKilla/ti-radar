@@ -9,10 +9,11 @@ const PHASE_COLORS = {
   Emerging: 'border-[#fbbf24]/30 text-[#fbbf24] bg-[#fbbf24]/10',
   Growing: 'border-[#e8917a]/30 text-[#e8917a] bg-[#e8917a]/10',
   Mature: 'border-[#f0abfc]/30 text-[#f0abfc] bg-[#f0abfc]/10',
+  Saturation: 'border-[#94a3b8]/30 text-[#94a3b8] bg-[#94a3b8]/10',
   Declining: 'border-[#94a3b8]/30 text-[#94a3b8] bg-[#94a3b8]/10',
 }
 
-const PHASE_DE = { Emerging: 'Aufkommend', Growing: 'Wachstum', Mature: 'Reife', Declining: 'Sättigung' }
+const PHASE_DE = { Emerging: 'Aufkommend', Growing: 'Wachstum', Mature: 'Reife', Saturation: 'Sättigung', Declining: 'Rückläufig' }
 
 const R2_LABEL = (r2) => {
   if (r2 >= 0.9) return { text: 'Exzellent', color: 'text-[#e8917a]' }
