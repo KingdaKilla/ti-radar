@@ -39,6 +39,7 @@ async def analyze_funding(
     year_programme_data: list[dict[str, str | int | float]] = []
 
     # Datentrunkierung pruefen
+    last_full: int | None = None
     try:
         last_full = await repo.get_last_full_year()
         if last_full is not None and last_full < end_year:
@@ -89,9 +90,14 @@ async def analyze_funding(
     total_projects = sum(int(f["count"] or 0) for f in funding_years)
     avg_size = total_funding / total_projects if total_projects > 0 else 0.0
 
-    # CAGR der Foerderung (Kalenderjahr-Spanne)
+    # CAGR der Foerderung — nur bis zum letzten vollstaendigen Jahr
     funding_cagr = 0.0
-    non_zero = [f for f in funding_years if float(f["funding"] or 0) > 0]
+    cagr_period = ""
+    cagr_cutoff = last_full if last_full is not None else end_year
+    non_zero = [
+        f for f in funding_years
+        if float(f["funding"] or 0) > 0 and int(f["year"]) <= cagr_cutoff
+    ]
     if len(non_zero) >= 2:
         first = float(non_zero[0]["funding"] or 0)
         last = float(non_zero[-1]["funding"] or 0)
@@ -100,9 +106,10 @@ async def analyze_funding(
         year_span = last_year - first_year
         if year_span > 0:
             funding_cagr = cagr(first, last, year_span)
+            cagr_period = f"{first_year}\u2013{last_year}"
             methods.append(
                 f"Foerder-CAGR ueber {year_span} Jahre "
-                f"({first_year}-{last_year})"
+                f"({first_year}-{last_year}, nur vollstaendige Daten)"
             )
 
     # Zeitreihe formatieren
@@ -148,6 +155,7 @@ async def analyze_funding(
     panel = FundingPanel(
         total_funding_eur=round(total_funding, 2),
         funding_cagr=round(funding_cagr, 2),
+        funding_cagr_period=cagr_period,
         avg_project_size=round(avg_size, 2),
         by_programme=by_programme,
         time_series=time_series,

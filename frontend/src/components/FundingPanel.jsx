@@ -106,8 +106,8 @@ export default function FundingPanel({ data, dataCompleteUntil, selectedActor })
         <MetricCard
           title="CAGR"
           value={cagrValue != null ? `${cagrValue > 0 ? '+' : ''}${cagrValue.toFixed(1)}%` : '\u2014'}
-          subtitle="Jährliches Wachstum"
-          info={"CAGR = ((V_final / V_initial)^(1/n) - 1) \u00D7 100\nCompound Annual Growth Rate"}
+          subtitle={data.funding_cagr_period ? `Wachstum ${data.funding_cagr_period}` : 'Jährliches Wachstum'}
+          info={`CAGR = ((V_final / V_initial)^(1/n) - 1) \u00D7 100\nCompound Annual Growth Rate${data.funding_cagr_period ? `\nBerechnungszeitraum: ${data.funding_cagr_period}\n(nur vollständige Datenjahre)` : ''}\n\nLimitationen:\n\u2022 Nur Anfangs-/Endwert \u2013 Schwankungen dazwischen ignoriert\n\u2022 Unterstellt konstantes Wachstum (keine Strukturbrüche)\n\u2022 Endpunktsensitiv \u2013 atypische Jahre verzerren`}
         />
       </div>
 

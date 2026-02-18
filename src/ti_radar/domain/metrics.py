@@ -16,6 +16,16 @@ def cagr(first_value: float, last_value: float, periods: int) -> float:
 
     Returns percentage (e.g. 12.5 for 12.5% growth).
     Returns 0.0 if inputs are invalid.
+
+    Limitationen:
+    - Endpunktsensitivitaet: Nur Anfangs- und Endwert gehen ein; Schwankungen
+      dazwischen werden ignoriert. Atypische Start-/Endjahre verzerren das Ergebnis.
+    - Glaettungsannahme: CAGR unterstellt konstantes jaehrliches Wachstum und
+      bildet keine Strukturbrueche ab (z.B. Programmwechsel FP7 -> H2020 -> Horizon).
+    - Null-/Negativwerte: Foerderjahre ohne Daten (funding=0) werden uebersprungen;
+      die Funktion gibt 0.0 zurueck, wenn Start- oder Endwert <= 0.
+    - Kurze Zeitraeume: Bei wenigen Perioden (n < 3) kann der CAGR statistisch
+      nicht belastbar sein.
     """
     if periods <= 0 or first_value <= 0 or last_value <= 0:
         return 0.0

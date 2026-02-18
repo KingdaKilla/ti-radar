@@ -66,6 +66,7 @@ class FundingPanel(BaseModel):
 
     total_funding_eur: float = 0.0
     funding_cagr: float = 0.0
+    funding_cagr_period: str = ""
     avg_project_size: float = 0.0
     by_programme: list[dict[str, Any]] = []
     time_series: list[dict[str, Any]] = []
