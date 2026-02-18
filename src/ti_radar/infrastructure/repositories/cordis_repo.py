@@ -7,6 +7,17 @@ import aiosqlite
 from ti_radar.config import Settings
 
 
+def _sanitize_fts5_query(query: str) -> str:
+    """FTS5-Suchbegriff sanitieren: Anfuehrungszeichen escapen, als Phrase wrappen.
+
+    FTS5 interpretiert Bindestriche als Spalten-Prefix-Operator (z.B. 'Lithium-ion'
+    wird zu 'Lithium' + 'suche in Spalte ion'). Durch Wrappen in Anfuehrungszeichen
+    wird der gesamte Ausdruck als Phrase behandelt.
+    """
+    cleaned = query.replace('"', '""')
+    return f'"{cleaned}"'
+
+
 class CordisRepository:
     """Async SQLite-Zugriff auf die CORDIS-Projekt-DB."""
 
@@ -31,7 +42,7 @@ class CordisRepository:
             JOIN projects p ON p.id = fts.rowid
             WHERE projects_fts MATCH ?
         """
-        params: list[str | int] = [query]
+        params: list[str | int] = [_sanitize_fts5_query(query)]
 
         if start_year:
             sql += " AND p.start_date >= ?"
@@ -61,7 +72,7 @@ class CordisRepository:
               AND p.start_date IS NOT NULL
               AND LENGTH(p.start_date) >= 4
         """
-        params: list[str | int] = [query]
+        params: list[str | int] = [_sanitize_fts5_query(query)]
 
         if start_year:
             sql += " AND SUBSTR(p.start_date, 1, 4) >= ?"
@@ -94,7 +105,7 @@ class CordisRepository:
               AND o.country IS NOT NULL
               AND o.country != ''
         """
-        params: list[str | int] = [query]
+        params: list[str | int] = [_sanitize_fts5_query(query)]
 
         if start_year:
             sql += " AND p.start_date >= ?"
@@ -127,7 +138,7 @@ class CordisRepository:
             WHERE projects_fts MATCH ?
               AND o.name IS NOT NULL
         """
-        params: list[str | int] = [query]
+        params: list[str | int] = [_sanitize_fts5_query(query)]
 
         if start_year:
             sql += " AND p.start_date >= ?"
@@ -158,7 +169,7 @@ class CordisRepository:
               AND LENGTH(p.start_date) >= 4
               AND p.ec_max_contribution IS NOT NULL
         """
-        params: list[str | int] = [query]
+        params: list[str | int] = [_sanitize_fts5_query(query)]
 
         if start_year:
             sql += " AND SUBSTR(p.start_date, 1, 4) >= ?"
@@ -189,7 +200,7 @@ class CordisRepository:
             WHERE projects_fts MATCH ?
               AND p.ec_max_contribution IS NOT NULL
         """
-        params: list[str | int] = [query]
+        params: list[str | int] = [_sanitize_fts5_query(query)]
 
         if start_year:
             sql += " AND p.start_date >= ?"
@@ -209,7 +220,8 @@ class CordisRepository:
 
     async def suggest_titles(self, prefix: str, limit: int = 500) -> list[str]:
         """Projekt-Titel via FTS5-Prefix-Suche fuer Autocomplete."""
-        fts_query = f'"{prefix}"*'
+        cleaned = prefix.replace('"', '""')
+        fts_query = f'"{cleaned}"*'
         sql = """
             SELECT p.title
             FROM projects_fts fts
@@ -238,7 +250,7 @@ class CordisRepository:
               AND LENGTH(p.start_date) >= 4
               AND p.ec_max_contribution IS NOT NULL
         """
-        params: list[str | int] = [query]
+        params: list[str | int] = [_sanitize_fts5_query(query)]
 
         if start_year:
             sql += " AND SUBSTR(p.start_date, 1, 4) >= ?"
@@ -309,7 +321,7 @@ class CordisRepository:
             WHERE projects_fts MATCH ?
               AND o1.name IS NOT NULL AND o2.name IS NOT NULL
         """
-        params: list[str | int] = [query]
+        params: list[str | int] = [_sanitize_fts5_query(query)]
 
         if start_year:
             sql += " AND p.start_date >= ?"
@@ -347,7 +359,7 @@ class CordisRepository:
               AND o.name IS NOT NULL
               AND p.framework IS NOT NULL
         """
-        params: list[str | int] = [query]
+        params: list[str | int] = [_sanitize_fts5_query(query)]
 
         if start_year:
             sql += " AND p.start_date >= ?"
@@ -386,7 +398,7 @@ class CordisRepository:
             WHERE projects_fts MATCH ?
               AND o.name IS NOT NULL
         """
-        params: list[str | int] = [query]
+        params: list[str | int] = [_sanitize_fts5_query(query)]
 
         if start_year:
             sql += " AND p.start_date >= ?"
@@ -428,7 +440,7 @@ class CordisRepository:
             WHERE projects_fts MATCH ?
               AND o.city IS NOT NULL AND o.city != ''
         """
-        params: list[str | int] = [query]
+        params: list[str | int] = [_sanitize_fts5_query(query)]
 
         if start_year:
             sql += " AND p.start_date >= ?"
@@ -457,7 +469,7 @@ class CordisRepository:
     ) -> dict[str, int | float]:
         """Anteil Cross-Border-Projekte (Projekte mit >= min_countries Laendern)."""
         base_where = "WHERE projects_fts MATCH ?"
-        params_base: list[str | int] = [query]
+        params_base: list[str | int] = [_sanitize_fts5_query(query)]
 
         if start_year:
             base_where += " AND p.start_date >= ?"
@@ -525,7 +537,7 @@ class CordisRepository:
               AND o1.country IS NOT NULL AND o1.country != ''
               AND o2.country IS NOT NULL AND o2.country != ''
         """
-        params: list[str | int] = [query]
+        params: list[str | int] = [_sanitize_fts5_query(query)]
 
         if start_year:
             sql += " AND p.start_date >= ?"
@@ -564,7 +576,7 @@ class CordisRepository:
               AND o.name IS NOT NULL
               AND p.start_date IS NOT NULL AND LENGTH(p.start_date) >= 4
         """
-        params: list[str | int] = [query]
+        params: list[str | int] = [_sanitize_fts5_query(query)]
 
         if start_year:
             sql += " AND SUBSTR(p.start_date, 1, 4) >= ?"
@@ -602,7 +614,7 @@ class CordisRepository:
               AND p.funding_scheme IS NOT NULL AND p.funding_scheme != ''
               AND p.start_date IS NOT NULL AND LENGTH(p.start_date) >= 4
         """
-        params: list[str | int] = [query]
+        params: list[str | int] = [_sanitize_fts5_query(query)]
 
         if start_year:
             sql += " AND SUBSTR(p.start_date, 1, 4) >= ?"

@@ -7,6 +7,17 @@ import aiosqlite
 from ti_radar.config import Settings
 
 
+def _sanitize_fts5_query(query: str) -> str:
+    """FTS5-Suchbegriff sanitieren: Anfuehrungszeichen escapen, als Phrase wrappen.
+
+    FTS5 interpretiert Bindestriche als Spalten-Prefix-Operator (z.B. 'Lithium-ion'
+    wird zu 'Lithium' + 'suche in Spalte ion'). Durch Wrappen in Anfuehrungszeichen
+    wird der gesamte Ausdruck als Phrase behandelt.
+    """
+    cleaned = query.replace('"', '""')
+    return f'"{cleaned}"'
+
+
 class PatentRepository:
     """Async SQLite-Zugriff auf die denormalisierte Patent-DB."""
 
@@ -30,7 +41,7 @@ class PatentRepository:
             JOIN patents p ON p.id = fts.rowid
             WHERE patents_fts MATCH ?
         """
-        params: list[str | int] = [query]
+        params: list[str | int] = [_sanitize_fts5_query(query)]
 
         if start_year:
             sql += " AND p.publication_date >= ?"
@@ -60,7 +71,7 @@ class PatentRepository:
               AND p.publication_date IS NOT NULL
               AND LENGTH(p.publication_date) >= 4
         """
-        params: list[str | int] = [query]
+        params: list[str | int] = [_sanitize_fts5_query(query)]
 
         if start_year:
             sql += " AND SUBSTR(p.publication_date, 1, 4) >= ?"
@@ -85,7 +96,7 @@ class PatentRepository:
             JOIN patents p ON p.id = fts.rowid
             WHERE patents_fts MATCH ?
         """
-        params: list[str | int] = [query]
+        params: list[str | int] = [_sanitize_fts5_query(query)]
 
         if start_year:
             sql += " AND p.publication_date >= ?"
@@ -148,7 +159,7 @@ class PatentRepository:
             JOIN patents p ON p.id = fts.rowid
             WHERE patents_fts MATCH ?
         """
-        params: list[str | int] = [query]
+        params: list[str | int] = [_sanitize_fts5_query(query)]
 
         if start_year:
             sql += " AND p.publication_date >= ?"
@@ -181,7 +192,7 @@ class PatentRepository:
               AND p.applicant_names IS NOT NULL
               AND p.applicant_names != ''
         """
-        params: list[str | int] = [query]
+        params: list[str | int] = [_sanitize_fts5_query(query)]
 
         if start_year:
             sql += " AND p.publication_date >= ?"
@@ -214,7 +225,7 @@ class PatentRepository:
               AND p.cpc_codes IS NOT NULL
               AND p.cpc_codes != ''
         """
-        params: list[str | int] = [query]
+        params: list[str | int] = [_sanitize_fts5_query(query)]
 
         if start_year:
             sql += " AND p.publication_date >= ?"
@@ -250,7 +261,7 @@ class PatentRepository:
               AND p.publication_date IS NOT NULL
               AND LENGTH(p.publication_date) >= 4
         """
-        params: list[str | int] = [query]
+        params: list[str | int] = [_sanitize_fts5_query(query)]
 
         if start_year:
             sql += " AND p.publication_date >= ?"
@@ -273,7 +284,8 @@ class PatentRepository:
 
     async def suggest_titles(self, prefix: str, limit: int = 500) -> list[str]:
         """Patent-Titel via FTS5-Prefix-Suche fuer Autocomplete."""
-        fts_query = f'"{prefix}"*'
+        cleaned = prefix.replace('"', '""')
+        fts_query = f'"{cleaned}"*'
         sql = """
             SELECT p.title
             FROM patents_fts fts
@@ -340,7 +352,7 @@ class PatentRepository:
             JOIN patents p ON p.id = fts.rowid
             WHERE patents_fts MATCH ?
         """
-        params: list[str | int] = [query]
+        params: list[str | int] = [_sanitize_fts5_query(query)]
 
         if start_year:
             sql += " AND p.publication_date >= ?"
@@ -380,7 +392,7 @@ class PatentRepository:
               AND p.applicant_names IS NOT NULL AND p.applicant_names != ''
               AND p.cpc_codes IS NOT NULL AND p.cpc_codes != ''
         """
-        params: list[str | int] = [query]
+        params: list[str | int] = [_sanitize_fts5_query(query)]
 
         if start_year:
             sql += " AND p.publication_date >= ?"
@@ -413,7 +425,7 @@ class PatentRepository:
               AND LENGTH(p.publication_date) >= 4
               AND p.family_id IS NOT NULL
         """
-        params: list[str | int] = [query]
+        params: list[str | int] = [_sanitize_fts5_query(query)]
 
         if start_year:
             sql += " AND SUBSTR(p.publication_date, 1, 4) >= ?"
@@ -445,7 +457,7 @@ class PatentRepository:
               AND p.applicant_countries IS NOT NULL
               AND p.applicant_countries != ''
         """
-        params: list[str | int] = [query]
+        params: list[str | int] = [_sanitize_fts5_query(query)]
 
         if start_year:
             sql += " AND p.publication_date >= ?"
@@ -487,7 +499,7 @@ class PatentRepository:
               AND p.applicant_names IS NOT NULL AND p.applicant_names != ''
               AND p.publication_date IS NOT NULL AND LENGTH(p.publication_date) >= 4
         """
-        params: list[str | int] = [query]
+        params: list[str | int] = [_sanitize_fts5_query(query)]
 
         if start_year:
             sql += " AND SUBSTR(p.publication_date, 1, 4) >= ?"
