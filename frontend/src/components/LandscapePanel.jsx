@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { LineChart, Line, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, Legend, ReferenceLine, CartesianGrid } from 'recharts'
+import { LineChart, Line, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, Legend, ReferenceLine, ReferenceArea, CartesianGrid } from 'recharts'
 import MetricCard from './MetricCard'
 import DownloadButton from './DownloadButton'
 import { exportCSV } from '../utils/export'
@@ -8,9 +8,10 @@ import { COUNTRY_NAMES, NON_COUNTRY_CODES, isEuropean } from '../utils/countries
 const TOOLTIP = { backgroundColor: '#141c2e', border: '1px solid rgba(232,145,122,0.2)', borderRadius: 8 }
 const TICK = { fill: '#5c6370', fontSize: 11 }
 
-function GrowthTooltipContent({ active, payload, label }) {
+function GrowthTooltipContent({ active, payload, label, dataCompleteUntil }) {
   if (!active || !payload?.length) return null
   const entry = payload[0]?.payload
+  const isIncomplete = dataCompleteUntil != null && Number(label) > dataCompleteUntil
   return (
     <div style={TOOLTIP} className="px-3 py-2 text-xs">
       <p className="text-[#f1f0ee] font-medium mb-1">{label}</p>
@@ -23,6 +24,11 @@ function GrowthTooltipContent({ active, payload, label }) {
       {entry?.publications > 0 && (
         <p className="text-[#fbbf24]">Publikationen: {entry.publications?.toLocaleString()}{entry.publications_growth != null ? ` (${entry.publications_growth > 0 ? '+' : ''}${entry.publications_growth}%)` : ''}</p>
       )}
+      {isIncomplete && (
+        <p style={{ color: '#fbbf24' }} className="mt-1.5 pt-1.5 border-t border-white/10 text-[10px]">
+          Daten ab {dataCompleteUntil + 1} unvollständig
+        </p>
+      )}
     </div>
   )
 }
@@ -32,7 +38,7 @@ const MODES = [
   { key: 'absolut', label: 'Absolut' },
 ]
 
-export default function LandscapePanel({ data }) {
+export default function LandscapePanel({ data, dataCompleteUntil }) {
   const [chartMode, setChartMode] = useState('wachstum')
 
   const countries = useMemo(() => {
@@ -100,9 +106,11 @@ export default function LandscapePanel({ data }) {
             {chartMode === 'wachstum' ? (
               <LineChart data={growthData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                {dataCompleteUntil && <ReferenceArea x1={dataCompleteUntil + 1} fill="#5c6370" fillOpacity={0.08} />}
+                {dataCompleteUntil && <ReferenceLine x={dataCompleteUntil + 1} stroke="#5c6370" strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: 'unvollst.', fill: '#5c6370', fontSize: 9, position: 'top' }} />}
                 <XAxis dataKey="year" tick={TICK} tickLine={false} />
                 <YAxis tick={TICK} tickLine={false} axisLine={false} unit="%" />
-                <Tooltip content={<GrowthTooltipContent />} />
+                <Tooltip content={<GrowthTooltipContent dataCompleteUntil={dataCompleteUntil} />} />
                 <ReferenceLine y={0} stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Line type="monotone" dataKey="patents_growth" stroke="#e8917a" strokeWidth={2} dot={false} name="Patente" connectNulls />
@@ -114,9 +122,11 @@ export default function LandscapePanel({ data }) {
             ) : (
               <AreaChart data={absoluteData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                {dataCompleteUntil && <ReferenceArea x1={dataCompleteUntil + 1} fill="#5c6370" fillOpacity={0.08} />}
+                {dataCompleteUntil && <ReferenceLine x={dataCompleteUntil + 1} stroke="#5c6370" strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: 'unvollst.', fill: '#5c6370', fontSize: 9, position: 'top' }} />}
                 <XAxis dataKey="year" tick={TICK} tickLine={false} />
                 <YAxis tick={TICK} tickLine={false} axisLine={false} />
-                <Tooltip content={<GrowthTooltipContent />} />
+                <Tooltip content={<GrowthTooltipContent dataCompleteUntil={dataCompleteUntil} />} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Area type="monotone" dataKey="patents" stroke="#e8917a" fill="#e8917a" fillOpacity={0.15} strokeWidth={2} name="Patente" />
                 <Area type="monotone" dataKey="projects" stroke="#f0abfc" fill="#f0abfc" fillOpacity={0.15} strokeWidth={2} name="Projekte" />

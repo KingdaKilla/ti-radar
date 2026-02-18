@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react'
-import { LineChart, Line, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, BarChart, Bar } from 'recharts'
+import { LineChart, Line, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, BarChart, Bar, ReferenceArea, ReferenceLine } from 'recharts'
 import MetricCard from './MetricCard'
 import DownloadButton from './DownloadButton'
 import { exportCSV } from '../utils/export'
 import { toTitleCase } from '../utils/format'
+import ChartTooltip from './ChartTooltip'
 
 const TOOLTIP = { backgroundColor: '#141c2e', border: '1px solid rgba(232,145,122,0.2)', borderRadius: 8 }
 
@@ -18,7 +19,7 @@ const VIEWS = [
   { key: 'breadth', label: 'Breite' },
 ]
 
-export default function TemporalPanel({ data }) {
+export default function TemporalPanel({ data, dataCompleteUntil }) {
   const [view, setView] = useState('dynamics')
 
   if (!data) return <PanelSkeleton />
@@ -112,9 +113,11 @@ export default function TemporalPanel({ data }) {
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={dynamicsData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                {dataCompleteUntil && <ReferenceArea x1={dataCompleteUntil + 1} fill="#5c6370" fillOpacity={0.08} />}
+                {dataCompleteUntil && <ReferenceLine x={dataCompleteUntil + 1} stroke="#5c6370" strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: 'unvollst.', fill: '#5c6370', fontSize: 9, position: 'top' }} />}
                 <XAxis dataKey="year" tick={{ fill: '#5c6370', fontSize: 10 }} tickLine={false} />
                 <YAxis tick={{ fill: '#5c6370', fontSize: 10 }} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={TOOLTIP} labelStyle={{ color: '#f1f0ee' }} itemStyle={{ color: '#e5e7eb' }} />
+                <Tooltip content={<ChartTooltip dataCompleteUntil={dataCompleteUntil} />} />
                 <Area type="monotone" dataKey="total_actors" stroke="#a78bfa" fill="#a78bfa" fillOpacity={0.15} strokeWidth={2} name="Akteure gesamt" />
               </AreaChart>
             </ResponsiveContainer>
@@ -124,9 +127,10 @@ export default function TemporalPanel({ data }) {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={dynamicsData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                {dataCompleteUntil && <ReferenceArea x1={dataCompleteUntil + 1} fill="#5c6370" fillOpacity={0.08} />}
                 <XAxis dataKey="year" tick={{ fill: '#5c6370', fontSize: 9 }} tickLine={false} />
                 <YAxis tick={{ fill: '#5c6370', fontSize: 9 }} tickLine={false} axisLine={false} unit="%" domain={[0, 100]} />
-                <Tooltip contentStyle={TOOLTIP} labelStyle={{ color: '#f1f0ee' }} itemStyle={{ color: '#e5e7eb' }} formatter={(v) => `${v}%`} />
+                <Tooltip content={<ChartTooltip dataCompleteUntil={dataCompleteUntil} formatValue={(v) => `${v}%`} />} />
                 <Legend wrapperStyle={{ fontSize: 9 }} />
                 <Line type="monotone" dataKey="new_pct" stroke="#34d399" strokeWidth={1.5} dot={false} name="Eintrittsrate" />
                 <Line type="monotone" dataKey="persist_pct" stroke="#a78bfa" strokeWidth={1.5} dot={false} name="Verbleibrate" />
@@ -162,9 +166,11 @@ export default function TemporalPanel({ data }) {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={progEvolution}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" horizontal={true} vertical={false} />
+              {dataCompleteUntil && <ReferenceArea x1={dataCompleteUntil + 1} fill="#5c6370" fillOpacity={0.08} />}
+              {dataCompleteUntil && <ReferenceLine x={dataCompleteUntil + 1} stroke="#5c6370" strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: 'unvollst.', fill: '#5c6370', fontSize: 9, position: 'top' }} />}
               <XAxis dataKey="year" tick={{ fill: '#5c6370', fontSize: 10 }} tickLine={false} />
               <YAxis tick={{ fill: '#5c6370', fontSize: 10 }} tickLine={false} axisLine={false} />
-              <Tooltip contentStyle={TOOLTIP} labelStyle={{ color: '#f1f0ee' }} itemStyle={{ color: '#e5e7eb' }} />
+              <Tooltip content={<ChartTooltip dataCompleteUntil={dataCompleteUntil} />} />
               <Legend wrapperStyle={{ fontSize: 9 }} />
               {topInstruments.map((inst, i) => (
                 <Bar key={inst} dataKey={inst} stackId="prog" fill={INSTRUMENT_COLORS[i % INSTRUMENT_COLORS.length]} />
@@ -179,9 +185,11 @@ export default function TemporalPanel({ data }) {
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={breadth}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+              {dataCompleteUntil && <ReferenceArea x1={dataCompleteUntil + 1} fill="#5c6370" fillOpacity={0.08} />}
+              {dataCompleteUntil && <ReferenceLine x={dataCompleteUntil + 1} stroke="#5c6370" strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: 'unvollst.', fill: '#5c6370', fontSize: 9, position: 'top' }} />}
               <XAxis dataKey="year" tick={{ fill: '#5c6370', fontSize: 10 }} tickLine={false} />
               <YAxis tick={{ fill: '#5c6370', fontSize: 10 }} tickLine={false} axisLine={false} />
-              <Tooltip contentStyle={TOOLTIP} labelStyle={{ color: '#f1f0ee' }} itemStyle={{ color: '#e5e7eb' }} />
+              <Tooltip content={<ChartTooltip dataCompleteUntil={dataCompleteUntil} />} />
               <Area type="monotone" dataKey="unique_cpc_sections" stroke="#fbbf24" fill="#fbbf24" fillOpacity={0.15} strokeWidth={2} name="CPC-Sektionen" />
             </AreaChart>
           </ResponsiveContainer>

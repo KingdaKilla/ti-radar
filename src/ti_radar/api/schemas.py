@@ -133,6 +133,7 @@ class ExplainabilityMetadata(BaseModel):
     deterministic: bool = True
     warnings: list[str] = []
     query_time_ms: int = 0
+    data_complete_until: int | None = None
 
 
 # --- Response: Gesamt-Radar ---

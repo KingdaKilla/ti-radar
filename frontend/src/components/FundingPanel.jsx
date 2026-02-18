@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts'
+import { BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, ReferenceArea, ReferenceLine } from 'recharts'
 import MetricCard from './MetricCard'
 import DownloadButton from './DownloadButton'
 import { exportCSV } from '../utils/export'
+import ChartTooltip from './ChartTooltip'
 
 const PROGRAMME_COLORS = {
   FP7: '#fbbf24',
@@ -24,7 +25,7 @@ function formatTooltipValue(value) {
   return formatCurrency(value)
 }
 
-export default function FundingPanel({ data, selectedActor }) {
+export default function FundingPanel({ data, dataCompleteUntil, selectedActor }) {
   const [hiddenProgs, setHiddenProgs] = useState(new Set())
 
   if (!data) return <PanelSkeleton title="Förderung" />
@@ -149,9 +150,11 @@ export default function FundingPanel({ data, selectedActor }) {
             {stackedData ? (
               <BarChart data={stackedData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" horizontal={true} vertical={false} />
+                {dataCompleteUntil && <ReferenceArea x1={dataCompleteUntil + 1} fill="#5c6370" fillOpacity={0.08} />}
+                {dataCompleteUntil && <ReferenceLine x={dataCompleteUntil + 1} stroke="#5c6370" strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: 'unvollst.', fill: '#5c6370', fontSize: 9, position: 'top' }} />}
                 <XAxis dataKey="year" tick={{ fill: '#5c6370', fontSize: 10 }} tickLine={false} />
                 <YAxis tick={{ fill: '#5c6370', fontSize: 10 }} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={TOOLTIP} labelStyle={{ color: '#f1f0ee' }} itemStyle={{ color: '#e5e7eb' }} formatter={(value, name) => [`${value}M EUR`, name]} />
+                <Tooltip content={<ChartTooltip dataCompleteUntil={dataCompleteUntil} formatValue={(v, name) => `${v}M EUR`} />} />
                 <Legend wrapperStyle={{ fontSize: 10 }} />
                 {stackedProgrammes.filter(p => !hiddenProgs.has(p)).map(prog => (
                   <Bar key={prog} dataKey={prog} stackId="funding" fill={PROGRAMME_COLORS[prog] || PROGRAMME_COLORS.UNKNOWN} />
@@ -160,10 +163,16 @@ export default function FundingPanel({ data, selectedActor }) {
             ) : (
               <BarChart data={timeSeries}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" horizontal={true} vertical={false} />
+                {dataCompleteUntil && <ReferenceArea x1={dataCompleteUntil + 1} fill="#5c6370" fillOpacity={0.08} />}
+                {dataCompleteUntil && <ReferenceLine x={dataCompleteUntil + 1} stroke="#5c6370" strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: 'unvollst.', fill: '#5c6370', fontSize: 9, position: 'top' }} />}
                 <XAxis dataKey="year" tick={{ fill: '#5c6370', fontSize: 10 }} tickLine={false} />
                 <YAxis tick={{ fill: '#5c6370', fontSize: 10 }} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={TOOLTIP} labelStyle={{ color: '#f1f0ee' }} itemStyle={{ color: '#e5e7eb' }} formatter={(value) => [`${value}M EUR`, 'Förderung']} />
-                <Bar dataKey="funding_m" fill="#e8917a" radius={[3, 3, 0, 0]} />
+                <Tooltip content={<ChartTooltip dataCompleteUntil={dataCompleteUntil} formatValue={(v) => `${v}M EUR`} />} />
+                <Bar dataKey="funding_m" radius={[3, 3, 0, 0]}>
+                  {timeSeries.map((entry, i) => (
+                    <Cell key={i} fill={dataCompleteUntil && entry.year > dataCompleteUntil ? '#5c6370' : '#e8917a'} />
+                  ))}
+                </Bar>
               </BarChart>
             )}
           </ResponsiveContainer>

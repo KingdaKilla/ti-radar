@@ -6,6 +6,8 @@ import asyncio
 import time
 from datetime import datetime
 
+import logging
+
 from fastapi import APIRouter
 
 from ti_radar.api.schemas import (
@@ -13,6 +15,10 @@ from ti_radar.api.schemas import (
     RadarRequest,
     RadarResponse,
 )
+from ti_radar.config import Settings
+from ti_radar.infrastructure.repositories.patent_repo import PatentRepository
+
+logger = logging.getLogger(__name__)
 from ti_radar.use_cases.competitive import analyze_competitive
 from ti_radar.use_cases.cpc_flow import analyze_cpc_flow
 from ti_radar.use_cases.funding import analyze_funding
@@ -88,6 +94,16 @@ async def analyze_technology(request: RadarRequest) -> RadarResponse:
         + g_warnings + ri_warnings + t_warnings
     )
 
+    # Letztes vollstaendiges Datenjahr ermitteln
+    data_complete_until: int | None = None
+    try:
+        settings = Settings()
+        if settings.patents_db_available:
+            repo = PatentRepository(settings.patents_db_path)
+            data_complete_until = await repo.get_last_full_year()
+    except Exception as exc:
+        logger.warning("Could not determine last full year: %s", exc)
+
     elapsed_ms = int((time.monotonic() - t0) * 1000)
 
     return RadarResponse(
@@ -107,5 +123,6 @@ async def analyze_technology(request: RadarRequest) -> RadarResponse:
             deterministic=True,
             warnings=all_warnings,
             query_time_ms=elapsed_ms,
+            data_complete_until=data_complete_until,
         ),
     )

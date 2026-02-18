@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid, ReferenceArea, ReferenceLine } from 'recharts'
+import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid, ReferenceArea, ReferenceLine } from 'recharts'
 import MetricCard from './MetricCard'
 import DownloadButton from './DownloadButton'
 import { exportCSV } from '../utils/export'
+import ChartTooltip from './ChartTooltip'
 
 const PHASE_COLORS = {
   Emerging: 'border-[#fbbf24]/30 text-[#fbbf24] bg-[#fbbf24]/10',
@@ -28,7 +29,7 @@ const VIEWS = [
   { key: 'annual', label: 'Jährlich' },
 ]
 
-export default function MaturityPanel({ data }) {
+export default function MaturityPanel({ data, dataCompleteUntil }) {
   const [viewMode, setViewMode] = useState('cumulative')
 
   if (!data) return <PanelSkeleton title="Reifegrad" />
@@ -98,6 +99,8 @@ export default function MaturityPanel({ data }) {
                 {viewMode === 'cumulative' ? (
                   <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                    {dataCompleteUntil && <ReferenceArea x1={dataCompleteUntil + 1} fill="#5c6370" fillOpacity={0.08} />}
+                    {dataCompleteUntil && <ReferenceLine x={dataCompleteUntil + 1} stroke="#5c6370" strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: 'unvollst.', fill: '#5c6370', fontSize: 9, position: 'top' }} />}
                     {phaseRegions.map((region, i) => (
                       <ReferenceArea
                         key={i}
@@ -119,7 +122,7 @@ export default function MaturityPanel({ data }) {
                     )}
                     <XAxis dataKey="year" tick={TICK} tickLine={false} />
                     <YAxis tick={TICK} tickLine={false} axisLine={false} label={{ value: 'Kumulativ', angle: -90, position: 'insideLeft', fill: '#5c6370', fontSize: 11 }} />
-                    <Tooltip contentStyle={TOOLTIP} labelStyle={{ color: '#f1f0ee' }} itemStyle={{ color: '#e5e7eb' }} />
+                    <Tooltip content={<ChartTooltip dataCompleteUntil={dataCompleteUntil} />} />
                     <Legend wrapperStyle={{ fontSize: 11 }} verticalAlign="top" align="right" />
                     <Line type="monotone" dataKey="cumulative" stroke="rgba(241,240,238,0.4)" strokeWidth={2} dot={{ r: 2, fill: 'rgba(241,240,238,0.5)' }} name="Kumulativ" />
                     {data.s_curve_fitted?.length > 0 && (
@@ -129,10 +132,16 @@ export default function MaturityPanel({ data }) {
                 ) : (
                   <BarChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                    {dataCompleteUntil && <ReferenceArea x1={dataCompleteUntil + 1} fill="#5c6370" fillOpacity={0.08} />}
+                    {dataCompleteUntil && <ReferenceLine x={dataCompleteUntil + 1} stroke="#5c6370" strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: 'unvollst.', fill: '#5c6370', fontSize: 9, position: 'top' }} />}
                     <XAxis dataKey="year" tick={TICK} tickLine={false} />
                     <YAxis tick={TICK} tickLine={false} axisLine={false} label={{ value: 'Patente/Jahr', angle: -90, position: 'insideLeft', fill: '#5c6370', fontSize: 11 }} />
-                    <Tooltip contentStyle={TOOLTIP} labelStyle={{ color: '#f1f0ee' }} itemStyle={{ color: '#e5e7eb' }} />
-                    <Bar dataKey="patents" fill="#e8917a" radius={[3, 3, 0, 0]} name="Patente" fillOpacity={0.7} />
+                    <Tooltip content={<ChartTooltip dataCompleteUntil={dataCompleteUntil} />} />
+                    <Bar dataKey="patents" radius={[3, 3, 0, 0]} name="Patente" fillOpacity={0.7}>
+                      {chartData.map((entry, i) => (
+                        <Cell key={i} fill={dataCompleteUntil && entry.year > dataCompleteUntil ? '#5c6370' : '#e8917a'} />
+                      ))}
+                    </Bar>
                   </BarChart>
                 )}
               </ResponsiveContainer>

@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar, Legend } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar, Legend, ReferenceArea, ReferenceLine } from 'recharts'
 import MetricCard from './MetricCard'
 import DownloadButton from './DownloadButton'
 import { exportCSV } from '../utils/export'
+import ChartTooltip from './ChartTooltip'
 
 const TOOLTIP = { backgroundColor: '#141c2e', border: '1px solid rgba(232,145,122,0.2)', borderRadius: 8 }
 
@@ -12,7 +13,7 @@ const VIEWS = [
   { key: 'venues', label: 'Venues' },
 ]
 
-export default function ResearchImpactPanel({ data }) {
+export default function ResearchImpactPanel({ data, dataCompleteUntil }) {
   const [view, setView] = useState('trend')
 
   if (!data) return <PanelSkeleton />
@@ -89,9 +90,11 @@ export default function ResearchImpactPanel({ data }) {
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={citationTrend}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+              {dataCompleteUntil && <ReferenceArea x1={dataCompleteUntil + 1} fill="#5c6370" fillOpacity={0.08} />}
+              {dataCompleteUntil && <ReferenceLine x={dataCompleteUntil + 1} stroke="#5c6370" strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: 'unvollst.', fill: '#5c6370', fontSize: 9, position: 'top' }} />}
               <XAxis dataKey="year" tick={{ fill: '#5c6370', fontSize: 10 }} tickLine={false} />
               <YAxis tick={{ fill: '#5c6370', fontSize: 10 }} tickLine={false} axisLine={false} />
-              <Tooltip contentStyle={TOOLTIP} labelStyle={{ color: '#f1f0ee' }} itemStyle={{ color: '#e5e7eb' }} />
+              <Tooltip content={<ChartTooltip dataCompleteUntil={dataCompleteUntil} />} />
               <Legend wrapperStyle={{ fontSize: 10 }} />
               <Line type="monotone" dataKey="paper_count" stroke="#34d399" strokeWidth={2} dot={false} name="Papers" />
               <Line type="monotone" dataKey="citations" stroke="#fbbf24" strokeWidth={2} dot={false} name="Zitationen" />
@@ -131,7 +134,7 @@ export default function ResearchImpactPanel({ data }) {
                 interval={0}
                 tickFormatter={(v) => v.length > 20 ? v.slice(0, 18) + '…' : v}
               />
-              <Tooltip contentStyle={TOOLTIP} labelStyle={{ color: '#f1f0ee' }} itemStyle={{ color: '#e5e7eb' }} />
+              <Tooltip content={<ChartTooltip dataCompleteUntil={dataCompleteUntil} />} />
               <Bar dataKey="count" fill="#34d399" radius={[0, 3, 3, 0]} name="Papers" />
             </BarChart>
           </ResponsiveContainer>
