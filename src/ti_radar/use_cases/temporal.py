@@ -155,20 +155,29 @@ def _compute_actor_dynamics(
 def _compute_technology_breadth(
     cpc_by_year: dict[int, list[str]],
 ) -> list[dict[str, Any]]:
-    """Einzigartige CPC-Sektionen pro Jahr (Technologie-Breite)."""
+    """Technologie-Breite pro Jahr (Leydesdorff et al. 2015).
+
+    Zwei Granularitaeten:
+    - unique_cpc_sections: CPC-Sektionen (A-H, grob, max 9)
+    - unique_cpc_subclasses: CPC-Subklassen (Level 4, z.B. H01L, feinkoernig)
+    """
     result: list[dict[str, Any]] = []
 
     for year in sorted(cpc_by_year.keys()):
         sections: set[str] = set()
+        subclasses: set[str] = set()
         for cpc_str in cpc_by_year[year]:
             for code in cpc_str.split(","):
                 code = code.strip()
                 if code:
                     sections.add(code[0])
+                    if len(code) >= 4:
+                        subclasses.add(code[:4])
 
         result.append({
             "year": year,
             "unique_cpc_sections": len(sections),
+            "unique_cpc_subclasses": len(subclasses),
         })
 
     return result

@@ -23,7 +23,7 @@ async def analyze_research_impact(
     methods: list[str] = []
     warnings: list[str] = []
 
-    adapter = SemanticScholarAdapter()
+    adapter = SemanticScholarAdapter(api_key=settings.semantic_scholar_api_key)
     papers: list[dict[str, Any]] = []
 
     try:
@@ -54,8 +54,14 @@ async def analyze_research_impact(
     top_venues = _compute_venue_distribution(papers, top_n=8)
     pub_types = _compute_publication_types(papers)
 
-    methods.append("h-Index (Hirsch, 2005)")
-    methods.append("Zitations-Analyse (Semantic Scholar)")
+    methods.append("h-Index (Hirsch 2005; Banks 2006 — Topic-Level-Adaption)")
+    methods.append(f"Stichprobe: {len(papers)} Papers (Semantic Scholar Top-200)")
+    methods.append("Influential Citations (Valenzuela et al. 2015 — experimentell)")
+    if len(papers) >= 200:
+        warnings.append(
+            "h-Index basiert auf Top-200 relevantesten Papers — Approximation, "
+            "kein vollstaendiger Korpus (Banks 2006)"
+        )
 
     panel = ResearchImpactPanel(
         h_index=h_index,

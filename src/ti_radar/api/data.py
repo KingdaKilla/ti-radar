@@ -46,9 +46,14 @@ async def health_check() -> dict[str, Any]:
                 else 0,
             },
             "epo_api": "configured" if settings.epo_ops_consumer_key else "not_configured",
+            "cordis_api": "configured" if settings.cordis_api_key else "not_configured",
             "openaire_api": "configured"
             if settings.openaire_access_token
             else "public_access",
+            "semantic_scholar_api": "configured"
+            if settings.semantic_scholar_api_key
+            else "public_access",
+            "gleif_api": "public_access",
         },
     }
 
@@ -61,7 +66,10 @@ async def data_metadata() -> dict[str, Any]:
         "patents_db_available": settings.patents_db_available,
         "cordis_db_available": settings.cordis_db_available,
         "epo_api_configured": bool(settings.epo_ops_consumer_key),
+        "cordis_api_configured": bool(settings.cordis_api_key),
         "openaire_configured": bool(settings.openaire_access_token),
+        "semantic_scholar_configured": bool(settings.semantic_scholar_api_key),
+        "gleif_available": True,
     }
 
 

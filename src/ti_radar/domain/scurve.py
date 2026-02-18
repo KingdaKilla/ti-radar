@@ -4,7 +4,8 @@ Implementiert zwei Wachstumskurven zur Reifegrad-Analyse:
 - Logistisch: f(x) = L / (1 + exp(-k*(x - x0))) — symmetrisch
 - Gompertz: f(x) = L * exp(-b * exp(-k*(x - x0))) — asymmetrisch
 
-Basiert auf Lee et al. (2016). Ensemble-Selektion via R².
+Phasenklassifikation nach Gao et al. (2013). Modellselektion nach Franses (1994).
+Ensemble-Selektion via R².
 """
 
 from __future__ import annotations

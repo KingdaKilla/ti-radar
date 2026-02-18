@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import sqlite3
+import time
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -102,9 +103,15 @@ class GleifAdapter:
         async with self._semaphore:
             try:
                 async with httpx.AsyncClient(timeout=self.TIMEOUT) as client:
+                    t0 = time.monotonic()
                     resp = await client.get(
                         f"{self.BASE_URL}/lei-records",
                         params={"filter[entity.legalName]": name},
+                    )
+                    elapsed_ms = int((time.monotonic() - t0) * 1000)
+                    logger.info(
+                        "GLEIF name='%s' -> %d (%dms)",
+                        name[:30], resp.status_code, elapsed_ms,
                     )
                     resp.raise_for_status()
                     data: dict[str, Any] = resp.json()

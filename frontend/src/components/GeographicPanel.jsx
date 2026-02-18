@@ -116,7 +116,7 @@ export default function GeographicPanel({ data }) {
 
       <div className="mt-4 pt-3 border-t border-white/[0.06]">
         <p className="text-[10px] text-[#5c6370] leading-relaxed">
-          Quellen: EPO DOCDB (Anmelderländer), CORDIS (Organisationsstandorte); Europa-Fokus (EU27 + EEA)
+          Quellen: Narin (1994) — Patent-Bibliometrie; Luukkonen et al. (1993) — Internationale Kooperation; EPO DOCDB, CORDIS; Europa-Fokus (EU27 + EEA)
         </p>
       </div>
     </div>

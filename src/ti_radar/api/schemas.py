@@ -123,6 +123,16 @@ class TemporalPanel(BaseModel):
     technology_breadth: list[dict[str, Any]] = []
 
 
+# --- Response: API Alerts ---
+
+class ApiAlert(BaseModel):
+    """API-Key/Token-Status-Warnung."""
+
+    source: str = ""
+    level: str = "warning"
+    message: str = ""
+
+
 # --- Response: Explainability ---
 
 class ExplainabilityMetadata(BaseModel):
@@ -132,6 +142,7 @@ class ExplainabilityMetadata(BaseModel):
     methods: list[str] = []
     deterministic: bool = True
     warnings: list[str] = []
+    api_alerts: list[ApiAlert] = []
     query_time_ms: int = 0
     data_complete_until: int | None = None
 

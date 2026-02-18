@@ -8,6 +8,7 @@ from typing import Any
 from ti_radar.api.schemas import CompetitivePanel
 from ti_radar.config import Settings
 from ti_radar.domain.metrics import hhi_concentration_level, hhi_index
+from ti_radar.infrastructure.adapters.gleif_adapter import GleifAdapter
 from ti_radar.infrastructure.repositories.cordis_repo import CordisRepository
 from ti_radar.infrastructure.repositories.patent_repo import PatentRepository
 
@@ -122,6 +123,28 @@ async def analyze_competitive(
 
     methods.append("Akteur-Aggregation (Patent-Anmelder + CORDIS-Organisationen)")
 
+    # --- GLEIF Entity Resolution fuer Akteure ohne Land ---
+    gleif_results: dict[str, dict[str, Any] | None] = {}
+    actors_without_country = [
+        name for name in list(actor_counts.keys())[:50]
+        if not cordis_countries.get(name)
+    ]
+    if actors_without_country:
+        try:
+            gleif = GleifAdapter(cache_db_path=settings.gleif_cache_db_path)
+            gleif_results = await gleif.resolve_batch(
+                actors_without_country[:20], max_api_calls=20
+            )
+            for name, info in gleif_results.items():
+                if info and info.get("country"):
+                    cordis_countries[name] = str(info["country"])
+            if any(v for v in gleif_results.values() if v):
+                sources.append("GLEIF LEI API")
+                methods.append("GLEIF Entity Resolution (LEI Lookup)")
+        except Exception as e:
+            logger.warning("GLEIF resolution failed: %s", e)
+            warnings.append(f"GLEIF Entity Resolution fehlgeschlagen: {e}")
+
     # --- Netzwerk-Graph ---
     network_nodes, network_edges = await _build_network(
         technology, start_year, end_year, effective_patent_end,
@@ -135,6 +158,7 @@ async def analyze_competitive(
         patent_actors, cordis_actors, cordis_countries,
         cordis_sme, cordis_coordinator,
         actor_counts, total_activity,
+        gleif_results,
     )
 
     panel = CompetitivePanel(
@@ -254,13 +278,15 @@ def _build_full_table(
     cordis_coordinator: dict[str, bool],
     actor_counts: dict[str, int],
     total_activity: int,
+    gleif_results: dict[str, dict[str, Any] | None] | None = None,
 ) -> list[dict[str, Any]]:
     """Vollstaendige Akteur-Tabelle fuer sortierbare Ansicht."""
     sorted_actors = sorted(actor_counts.items(), key=lambda x: x[1], reverse=True)
+    gleif = gleif_results or {}
     result: list[dict[str, Any]] = []
     for rank, (name, count) in enumerate(sorted_actors, 1):
         share = count / total_activity if total_activity > 0 else 0.0
-        result.append({
+        entry: dict[str, Any] = {
             "rank": rank,
             "name": name,
             "patents": patent_actors.get(name, 0),
@@ -270,5 +296,12 @@ def _build_full_table(
             "country": cordis_countries.get(name, ""),
             "is_sme": cordis_sme.get(name, False),
             "is_coordinator": cordis_coordinator.get(name, False),
-        })
+        }
+        # GLEIF-Anreicherung (LEI, offizieller Name, Stadt)
+        gleif_info = gleif.get(name)
+        if gleif_info:
+            entry["lei"] = gleif_info.get("lei", "")
+            entry["legal_name"] = gleif_info.get("legal_name", "")
+            entry["city"] = gleif_info.get("city", "")
+        result.append(entry)
     return result

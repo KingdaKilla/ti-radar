@@ -23,9 +23,10 @@ async def analyze_maturity(
     """
     UC2: Reifegrad einer Technologie analysieren.
 
-    Basiert auf kumulativen Patent-Zeitreihen (Lee et al. 2016):
+    Basiert auf kumulativen Patent-Zeitreihen:
     - S-Curve-Fit (Levenberg-Marquardt) fuer Reifegradbestimmung
-    - Phasen-Klassifikation nach Lee et al. (2016)
+    - Phasen-Klassifikation nach Gao et al. (2013)
+    - Patent-Familien-Deduplizierung (OECD, 2009)
     """
     settings = Settings()
     sources: list[str] = []
@@ -39,7 +40,7 @@ async def analyze_maturity(
     if settings.patents_db_available:
         try:
             repo = PatentRepository(settings.patents_db_path)
-            # Primaer: unique families (Lee et al. 2016 — Dopplungen vermeiden)
+            # Primaer: unique families (OECD 2009 — Dopplungen vermeiden)
             rows = await repo.count_families_by_year(
                 technology, start_year=start_year, end_year=end_year
             )
@@ -134,11 +135,11 @@ async def analyze_maturity(
             r_sq, len(fit_years), fit_cumulative[-1] if fit_cumulative else 0
         )
 
-        # Phase via maturity_percent (Lee et al. 2016)
+        # Phase via maturity_percent (Gao et al. 2013)
         phase_en, phase_de, _ = classify_maturity_phase(
             combined, maturity_percent=maturity_pct, r_squared=r_sq
         )
-        methods.append("Phasenklassifikation (Lee et al. 2016)")
+        methods.append("Phasenklassifikation (Gao et al. 2013)")
     else:
         # Fallback: Heuristik
         phase_en, phase_de, confidence = classify_maturity_phase(combined)

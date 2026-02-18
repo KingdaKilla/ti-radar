@@ -156,7 +156,7 @@ export default function ResearchImpactPanel({ data, dataCompleteUntil }) {
 
       <div className="mt-4 pt-3 border-t border-white/[0.06]">
         <p className="text-[10px] text-[#5c6370] leading-relaxed">
-          Quellen: Semantic Scholar Academic Graph API; h-Index nach Hirsch (2005)
+          Quellen: h-Index nach Hirsch (2005); Banks (2006) — Topic-Level-Adaption; Valenzuela et al. (2015) — Influential Citations; Semantic Scholar API; Stichprobe Top-200 Papers
         </p>
       </div>
     </div>

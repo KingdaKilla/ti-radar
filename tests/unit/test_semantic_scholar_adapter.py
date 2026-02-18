@@ -141,3 +141,51 @@ class TestSemanticScholarAdapter:
         with patch("httpx.AsyncClient", _mock_client_with_get(mock_get)):
             result = await adapter.search_papers("nonexistent", 2020, 2023)
         assert result == []
+
+
+class TestApiKeySupport:
+    """Tests fuer API Key Authentifizierung."""
+
+    def test_default_no_api_key(self):
+        adapter = SemanticScholarAdapter()
+        assert adapter._api_key == ""
+
+    def test_api_key_stored(self):
+        adapter = SemanticScholarAdapter(api_key="test-key-123")
+        assert adapter._api_key == "test-key-123"
+
+    async def test_api_key_sends_header(self):
+        """API key is sent as x-api-key header."""
+        adapter = SemanticScholarAdapter(api_key="test-key-xyz")
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"total": 0, "data": []}
+        mock_response.raise_for_status = MagicMock()
+        mock_response.status_code = 200
+
+        mock_get = AsyncMock(return_value=mock_response)
+
+        with patch("httpx.AsyncClient", _mock_client_with_get(mock_get)):
+            await adapter.search_papers("test", 2020, 2023, limit=10)
+
+        call_args = mock_get.call_args
+        headers = call_args.kwargs.get("headers", {})
+        assert headers.get("x-api-key") == "test-key-xyz"
+
+    async def test_no_api_key_no_header(self):
+        """Without API key, no x-api-key header is sent."""
+        adapter = SemanticScholarAdapter()
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"total": 0, "data": []}
+        mock_response.raise_for_status = MagicMock()
+        mock_response.status_code = 200
+
+        mock_get = AsyncMock(return_value=mock_response)
+
+        with patch("httpx.AsyncClient", _mock_client_with_get(mock_get)):
+            await adapter.search_papers("test", 2020, 2023, limit=10)
+
+        call_args = mock_get.call_args
+        headers = call_args.kwargs.get("headers", {})
+        assert "x-api-key" not in headers

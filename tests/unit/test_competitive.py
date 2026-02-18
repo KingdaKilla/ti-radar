@@ -82,3 +82,41 @@ class TestBuildFullTable:
         actor_counts = {"A": 3, "B": 2, "C": 1}
         result = _build_full_table({}, {}, {}, {}, {}, actor_counts, 6)
         assert [r["rank"] for r in result] == [1, 2, 3]
+
+
+class TestBuildFullTableGleif:
+    """Tests fuer GLEIF-Anreicherung in der Akteur-Tabelle."""
+
+    def test_gleif_enriches_actor(self):
+        actor_counts = {"SIEMENS AG": 10}
+        gleif_results = {
+            "SIEMENS AG": {
+                "lei": "529900HNOAA1KXQJUQ27",
+                "legal_name": "SIEMENS AKTIENGESELLSCHAFT",
+                "country": "DE",
+                "city": "MUNICH",
+            }
+        }
+        result = _build_full_table({}, {}, {}, {}, {}, actor_counts, 10, gleif_results)
+        assert result[0]["lei"] == "529900HNOAA1KXQJUQ27"
+        assert result[0]["legal_name"] == "SIEMENS AKTIENGESELLSCHAFT"
+        assert result[0]["city"] == "MUNICH"
+
+    def test_gleif_none_result_no_extra_fields(self):
+        actor_counts = {"UNKNOWN": 5}
+        gleif_results = {"UNKNOWN": None}
+        result = _build_full_table({}, {}, {}, {}, {}, actor_counts, 5, gleif_results)
+        assert "lei" not in result[0]
+        assert "legal_name" not in result[0]
+
+    def test_gleif_empty_dict_no_crash(self):
+        actor_counts = {"A": 3}
+        result = _build_full_table({}, {}, {}, {}, {}, actor_counts, 3, {})
+        assert len(result) == 1
+        assert "lei" not in result[0]
+
+    def test_gleif_none_param_backward_compat(self):
+        actor_counts = {"A": 3}
+        result = _build_full_table({}, {}, {}, {}, {}, actor_counts, 3, None)
+        assert len(result) == 1
+        assert "lei" not in result[0]

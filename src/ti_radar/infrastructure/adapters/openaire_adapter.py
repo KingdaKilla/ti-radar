@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import Any
 
 import httpx
@@ -56,7 +57,12 @@ class OpenAIREAdapter:
         if self._token:
             headers["Authorization"] = f"Bearer {self._token}"
 
+        t0 = time.monotonic()
         resp = await client.get(self.BASE_URL, params=params, headers=headers)
+        elapsed_ms = int((time.monotonic() - t0) * 1000)
+        logger.info(
+            "OpenAIRE year=%d -> %d (%dms)", year, resp.status_code, elapsed_ms,
+        )
         resp.raise_for_status()
 
         data: dict[str, Any] = resp.json()

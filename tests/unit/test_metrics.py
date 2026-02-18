@@ -9,7 +9,6 @@ from ti_radar.domain.metrics import (
     classify_maturity_phase,
     hhi_concentration_level,
     hhi_index,
-    martini_john_ratio,
     s_curve_confidence,
 )
 
@@ -127,32 +126,6 @@ class TestHHILevel:
         en, _ = hhi_concentration_level(10_000)
         assert en == "High"
 
-
-# --- Martini-John Ratio ---
-
-
-class TestMartiniJohn:
-    """Tests fuer Martini-John Ratio (Patents/Publications)."""
-
-    def test_balanced(self):
-        assert martini_john_ratio(100, 100) == pytest.approx(1.0)
-
-    def test_commercial(self):
-        result = martini_john_ratio(300, 100)
-        assert result > 1.0
-
-    def test_research_dominant(self):
-        result = martini_john_ratio(50, 200)
-        assert result < 1.0
-
-    def test_zero_publications_returns_zero(self):
-        assert martini_john_ratio(100, 0) == 0.0
-
-    def test_negative_publications_returns_zero(self):
-        assert martini_john_ratio(100, -1) == 0.0
-
-    def test_zero_patents(self):
-        assert martini_john_ratio(0, 100) == pytest.approx(0.0)
 
 
 # --- Maturity Phase Classification ---

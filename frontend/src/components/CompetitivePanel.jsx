@@ -130,7 +130,7 @@ export default function CompetitivePanel({ data, onSelectActor }) {
 
       <div className="mt-4 pt-3 border-t border-white/[0.06]">
         <p className="text-[10px] text-[#5c6370] leading-relaxed">
-          Quellen: HHI (DOJ/FTC) — Marktkonzentration; Co-Partizipation — Netzwerkanalyse; EPO DOCDB, CORDIS
+          Quellen: HHI (DOJ/FTC 2010; Garcia-Vega 2006) — Marktkonzentration; Co-Partizipation — Netzwerkanalyse; EPO DOCDB, CORDIS
         </p>
       </div>
     </div>

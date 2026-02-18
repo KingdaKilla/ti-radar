@@ -129,6 +129,15 @@ class TestHealthEndpoint:
         assert data["data_sources"]["patents_db"]["available"] is True
         assert data["data_sources"]["cordis_db"]["available"] is True
 
+    def test_health_shows_api_status(self, client: TestClient):
+        response = client.get("/health")
+        data = response.json()
+        ds = data["data_sources"]
+        assert "semantic_scholar_api" in ds
+        assert "gleif_api" in ds
+        assert "cordis_api" in ds
+        assert ds["gleif_api"] == "public_access"
+
 
 class TestMetadataEndpoint:
     """Tests fuer GET /api/v1/data/metadata."""
@@ -139,6 +148,13 @@ class TestMetadataEndpoint:
         data = response.json()
         assert "patents_db_available" in data
         assert "cordis_db_available" in data
+
+    def test_metadata_has_all_sources(self, client: TestClient):
+        response = client.get("/api/v1/data/metadata")
+        data = response.json()
+        assert "semantic_scholar_configured" in data
+        assert "gleif_available" in data
+        assert data["gleif_available"] is True
 
     def test_metadata_no_db(self, client_no_db: TestClient):
         response = client_no_db.get("/api/v1/data/metadata")
@@ -298,3 +314,13 @@ class TestRadarEndpoint:
         assert "new_entrant_rate" in temp
         assert "persistence_rate" in temp
         assert "actor_timeline" in temp
+
+    def test_radar_has_api_alerts_field(self, client: TestClient):
+        """RadarResponse.explainability enthaelt api_alerts (Liste)."""
+        response = client.post("/api/v1/radar", json={
+            "technology": "quantum",
+            "years": 5,
+        })
+        data = response.json()
+        assert "api_alerts" in data["explainability"]
+        assert isinstance(data["explainability"]["api_alerts"], list)

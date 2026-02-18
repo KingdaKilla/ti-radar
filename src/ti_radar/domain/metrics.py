@@ -49,23 +49,6 @@ def hhi_concentration_level(hhi: float) -> tuple[str, str]:
     return "High", "Hoch"
 
 
-def martini_john_ratio(patents: int, publications: int) -> float:
-    """
-    Martini-John Ratio: Patents / Publications.
-
-    Misst den Kommerzialisierungsgrad einer Technologie.
-    - > 1.0: Starke Kommerzialisierung
-    - ~ 1.0: Ausgeglichen
-    - < 1.0: Forschungsdominiert
-
-    Verwendet projects als Proxy fuer publications wenn noetig.
-    Returns 0.0 wenn publications == 0.
-    """
-    if publications <= 0:
-        return 0.0
-    return patents / publications
-
-
 def s_curve_confidence(
     r_squared: float,
     n_years: int,
@@ -95,7 +78,7 @@ def classify_maturity_phase(
     """
     Reifegrad-Phase klassifizieren.
 
-    Wenn maturity_percent gegeben (aus S-Curve-Fit): Schwellwerte nach Lee et al. (2016).
+    Wenn maturity_percent gegeben (aus S-Curve-Fit): Schwellwerte nach Gao et al. (2013).
     Sonst: Fallback auf Wachstumsmuster-Heuristik.
 
     Returns:

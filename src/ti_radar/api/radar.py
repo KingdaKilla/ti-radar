@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 from datetime import datetime
-
-import logging
 
 from fastapi import APIRouter
 
@@ -16,9 +15,8 @@ from ti_radar.api.schemas import (
     RadarResponse,
 )
 from ti_radar.config import Settings
+from ti_radar.domain.api_health import check_jwt_expiry, detect_runtime_failures
 from ti_radar.infrastructure.repositories.patent_repo import PatentRepository
-
-logger = logging.getLogger(__name__)
 from ti_radar.use_cases.competitive import analyze_competitive
 from ti_radar.use_cases.cpc_flow import analyze_cpc_flow
 from ti_radar.use_cases.funding import analyze_funding
@@ -27,6 +25,8 @@ from ti_radar.use_cases.landscape import analyze_landscape
 from ti_radar.use_cases.maturity import analyze_maturity
 from ti_radar.use_cases.research_impact import analyze_research_impact
 from ti_radar.use_cases.temporal import analyze_temporal
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["Radar"])
 
@@ -38,7 +38,7 @@ async def analyze_technology(request: RadarRequest) -> RadarResponse:
 
     Gibt ein komplettes Dashboard-Objekt zurueck mit:
     - Landschaft (UC1): Patente + Projekte + Publikationen ueber Zeit
-    - Reifegrad (UC2): S-Curve, Phase, CAGR, Martini-John
+    - Reifegrad (UC2): S-Curve, Phase, Phasenklassifikation (Gao et al. 2013)
     - Wettbewerb (UC3): HHI, Top-Akteure, Marktanteile
     - Foerderung (UC4): EU-Foerderprogramme, CAGR, Projektgroessen
     - CPC-Fluss (UC5): CPC-Co-Klassifikation, Jaccard-Matrix
@@ -96,13 +96,22 @@ async def analyze_technology(request: RadarRequest) -> RadarResponse:
 
     # Letztes vollstaendiges Datenjahr ermitteln
     data_complete_until: int | None = None
+    settings = Settings()
     try:
-        settings = Settings()
         if settings.patents_db_available:
             repo = PatentRepository(settings.patents_db_path)
             data_complete_until = await repo.get_last_full_year()
     except Exception as exc:
         logger.warning("Could not determine last full year: %s", exc)
+
+    # API-Key/Token Health Checks (lokal, 0ms)
+    api_alerts = []
+    openaire_alert = check_jwt_expiry(
+        settings.openaire_access_token, "OpenAIRE",
+    )
+    if openaire_alert:
+        api_alerts.append(openaire_alert)
+    api_alerts.extend(detect_runtime_failures(all_warnings))
 
     elapsed_ms = int((time.monotonic() - t0) * 1000)
 
@@ -122,6 +131,7 @@ async def analyze_technology(request: RadarRequest) -> RadarResponse:
             methods=all_methods,
             deterministic=True,
             warnings=all_warnings,
+            api_alerts=api_alerts,
             query_time_ms=elapsed_ms,
             data_complete_until=data_complete_until,
         ),

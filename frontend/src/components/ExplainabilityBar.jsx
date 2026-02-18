@@ -5,6 +5,9 @@ export default function ExplainabilityBar({ data }) {
 
   if (!data) return null
 
+  const apiErrors = data.api_alerts?.filter(a => a.level === 'error') || []
+  const apiWarnings = data.api_alerts?.filter(a => a.level === 'warning') || []
+
   return (
     <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl overflow-hidden">
       {/* Compact bar — always visible */}
@@ -28,6 +31,18 @@ export default function ExplainabilityBar({ data }) {
         {data.methods?.length > 0 && (
           <span className="text-[#5c6370] text-xs">
             {data.methods.length} Methode{data.methods.length > 1 ? 'n' : ''}
+          </span>
+        )}
+
+        {apiErrors.length > 0 && (
+          <span className="px-2 py-0.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded text-xs">
+            {apiErrors.length} API-Fehler
+          </span>
+        )}
+
+        {apiWarnings.length > 0 && (
+          <span className="px-2 py-0.5 bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 rounded text-xs">
+            {apiWarnings.length} API-Warnung{apiWarnings.length > 1 ? 'en' : ''}
           </span>
         )}
 
@@ -63,6 +78,26 @@ export default function ExplainabilityBar({ data }) {
                   </span>
                 ))}
               </div>
+            </div>
+          )}
+
+          {data.api_alerts?.length > 0 && (
+            <div>
+              <p className="text-xs text-[#5c6370] mb-2">API-Status</p>
+              <ul className="space-y-1">
+                {data.api_alerts.map((alert, i) => (
+                  <li key={i} className={`flex items-start gap-2 text-xs ${
+                    alert.level === 'error' ? 'text-red-400' : 'text-yellow-400/80'
+                  }`}>
+                    <span className="mt-0.5 shrink-0">
+                      {alert.level === 'error' ? '\u2716' : '!'}
+                    </span>
+                    <span>
+                      <strong>{alert.source}:</strong> {alert.message}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
 

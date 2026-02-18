@@ -44,7 +44,7 @@ export default function MaturityPanel({ data, dataCompleteUntil }) {
   const r2Info = R2_LABEL(data.r_squared || 0)
   const satLevel = data.saturation_level || 0
 
-  // Phase region boundaries (based on Lee et al. 2016 thresholds)
+  // Phase region boundaries (based on Gao et al. 2013 thresholds)
   const phaseRegions = satLevel > 0 ? [
     { y1: 0, y2: satLevel * 0.1, fill: '#fbbf24', label: 'Aufkommend' },
     { y1: satLevel * 0.1, y2: satLevel * 0.5, fill: '#e8917a', label: 'Wachstum' },
@@ -169,7 +169,7 @@ export default function MaturityPanel({ data, dataCompleteUntil }) {
 
       <div className="mt-4 pt-3 border-t border-white/[0.06]">
         <p className="text-[10px] text-[#5c6370] leading-relaxed">
-          Quellen: Lee et al. (2016) — S-Curve-Phasenklassifikation; {data.fit_model === 'Gompertz' ? 'Gompertz' : 'Logistic'}-Algorithmus (TRF); EPO DOCDB
+          Quellen: Gao et al. (2013) — S-Curve-Phasenklassifikation; Franses (1994) — Modellselektion ({data.fit_model === 'Gompertz' ? 'Gompertz' : 'Logistic'}); OECD (2009) — Patent-Familien; EPO DOCDB
         </p>
       </div>
     </div>

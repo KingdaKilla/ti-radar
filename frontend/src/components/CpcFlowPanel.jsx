@@ -375,7 +375,7 @@ export default function CpcFlowPanel({ data }) {
 
       <div className="mt-4 pt-3 border-t border-white/[0.06]">
         <p className="text-[10px] text-[#5c6370] leading-relaxed">
-          Quellen: Jaccard (1901) — Koeffizient der Gemeinschaftlichkeit; CPC-Koklassifikation (EPO DOCDB); Stichprobe max. 10.000 Patente mit CPC-Codes (kann von UC1-Gesamtzahl abweichen)
+          Quellen: Curran & Leker (2011) — CPC-Koklassifikation; Jaccard (1901) — Ähnlichkeitskoeffizient; Yan & Luo (2019) — CPC-Level-4; EPO DOCDB; Stichprobe max. 10.000 Patente
         </p>
       </div>
     </div>

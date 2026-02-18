@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     # OpenAIRE (optional)
     openaire_access_token: str = ""
 
+    # Semantic Scholar (optional, erhoeht Rate Limits)
+    semantic_scholar_api_key: str = ""
+
     # GLEIF Cache (optional)
     gleif_cache_db_path: str = "data/gleif_cache.db"
 
@@ -46,4 +49,9 @@ class Settings(BaseSettings):
     @property
     def openaire_available(self) -> bool:
         """OpenAIRE ist oeffentlich zugaenglich (Token optional fuer hoehere Rate-Limits)."""
+        return True
+
+    @property
+    def semantic_scholar_available(self) -> bool:
+        """Semantic Scholar ist oeffentlich zugaenglich (Key optional)."""
         return True

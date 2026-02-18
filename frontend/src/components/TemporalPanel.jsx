@@ -88,7 +88,7 @@ export default function TemporalPanel({ data, dataCompleteUntil }) {
         <p className="text-xs text-[#5c6370]">
           {view === 'dynamics' && 'Akteur-Dynamik pro Jahr'}
           {view === 'programmes' && 'Förderinstrumente pro Jahr'}
-          {view === 'breadth' && 'Technologiebreite (CPC-Sektionen)'}
+          {view === 'breadth' && 'Technologiebreite (CPC-Sektionen + Subklassen)'}
         </p>
         <div className="flex gap-0.5 p-0.5 bg-white/[0.04] rounded-md">
           {VIEWS.map(v => (
@@ -188,9 +188,12 @@ export default function TemporalPanel({ data, dataCompleteUntil }) {
               {dataCompleteUntil && <ReferenceArea x1={dataCompleteUntil + 1} fill="#5c6370" fillOpacity={0.08} />}
               {dataCompleteUntil && <ReferenceLine x={dataCompleteUntil + 1} stroke="#5c6370" strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: 'unvollst.', fill: '#5c6370', fontSize: 9, position: 'top' }} />}
               <XAxis dataKey="year" tick={{ fill: '#5c6370', fontSize: 10 }} tickLine={false} />
-              <YAxis tick={{ fill: '#5c6370', fontSize: 10 }} tickLine={false} axisLine={false} />
+              <YAxis yAxisId="left" tick={{ fill: '#5c6370', fontSize: 10 }} tickLine={false} axisLine={false} />
+              <YAxis yAxisId="right" orientation="right" tick={{ fill: '#5c6370', fontSize: 10 }} tickLine={false} axisLine={false} />
               <Tooltip content={<ChartTooltip dataCompleteUntil={dataCompleteUntil} />} />
-              <Area type="monotone" dataKey="unique_cpc_sections" stroke="#fbbf24" fill="#fbbf24" fillOpacity={0.15} strokeWidth={2} name="CPC-Sektionen" />
+              <Legend wrapperStyle={{ fontSize: 9 }} />
+              <Area yAxisId="right" type="monotone" dataKey="unique_cpc_subclasses" stroke="#34d399" fill="#34d399" fillOpacity={0.1} strokeWidth={2} name="CPC-Subklassen (Level 4)" />
+              <Area yAxisId="left" type="monotone" dataKey="unique_cpc_sections" stroke="#fbbf24" fill="#fbbf24" fillOpacity={0.15} strokeWidth={2} name="CPC-Sektionen (A-H)" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -198,7 +201,7 @@ export default function TemporalPanel({ data, dataCompleteUntil }) {
 
       <div className="mt-4 pt-3 border-t border-white/[0.06]">
         <p className="text-[10px] text-[#5c6370] leading-relaxed">
-          Quellen: EPO DOCDB (Akteur-Dynamik), CORDIS (Programmevolution); CPC-Technologiebreite nach Sektionen
+          Quellen: Malerba & Orsenigo (1999) — Akteur-Dynamik; Leydesdorff et al. (2015) — Technologiebreite (CPC); EPO DOCDB, CORDIS
         </p>
       </div>
     </div>
