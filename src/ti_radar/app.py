@@ -20,7 +20,7 @@ def create_app() -> FastAPI:
 
     app = FastAPI(
         title="Technology Radar API",
-        description="Technology Intelligence Radar — Alle 5 Use Cases auf einen Blick.",
+        description="Technology Intelligence Radar — Alle 8 Use Cases auf einen Blick.",
         version="0.1.0",
     )
 

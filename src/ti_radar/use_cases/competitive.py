@@ -35,6 +35,8 @@ async def analyze_competitive(
     patent_actors: dict[str, int] = {}
     cordis_actors: dict[str, int] = {}
     cordis_countries: dict[str, str] = {}
+    cordis_sme: dict[str, bool] = {}
+    cordis_coordinator: dict[str, bool] = {}
     effective_patent_end = end_year
 
     # Patent-Anmelder
@@ -74,6 +76,10 @@ async def analyze_competitive(
                     cordis_actors[name] = cordis_actors.get(name, 0) + int(o["count"])
                     if o.get("country"):
                         cordis_countries[name] = str(o["country"])
+                    if o.get("is_sme"):
+                        cordis_sme[name] = True
+                    if o.get("is_coordinator"):
+                        cordis_coordinator[name] = True
             if orgs:
                 sources.append("CORDIS (lokal)")
         except Exception as e:
@@ -127,6 +133,7 @@ async def analyze_competitive(
     # --- Vollstaendige Tabelle ---
     full_actors = _build_full_table(
         patent_actors, cordis_actors, cordis_countries,
+        cordis_sme, cordis_coordinator,
         actor_counts, total_activity,
     )
 
@@ -239,11 +246,12 @@ async def _build_network(
     return nodes, edges
 
 
-
 def _build_full_table(
     patent_actors: dict[str, int],
     cordis_actors: dict[str, int],
     cordis_countries: dict[str, str],
+    cordis_sme: dict[str, bool],
+    cordis_coordinator: dict[str, bool],
     actor_counts: dict[str, int],
     total_activity: int,
 ) -> list[dict[str, Any]]:
@@ -260,5 +268,7 @@ def _build_full_table(
             "total": count,
             "share": round(share, 4),
             "country": cordis_countries.get(name, ""),
+            "is_sme": cordis_sme.get(name, False),
+            "is_coordinator": cordis_coordinator.get(name, False),
         })
     return result

@@ -47,10 +47,10 @@ python scripts/import_cordis_bulk.py \
 
 ## Starten
 
-### Backend (Port 8001)
+### Backend (Port 8000)
 
 ```bash
-uvicorn ti_radar.app:create_app --factory --port 8001 --reload
+uvicorn ti_radar.app:create_app --factory --port 8000 --reload
 ```
 
 **Wichtig:** Das `--factory` Flag ist erforderlich, da `create_app` eine Factory-Funktion ist.
@@ -62,7 +62,7 @@ cd frontend
 npm run dev
 ```
 
-Vite proxied `/api` und `/health` automatisch an `:8001` — keine CORS-Probleme in der Entwicklung.
+Vite proxied `/api` und `/health` automatisch an `:8000` — keine CORS-Probleme in der Entwicklung.
 
 **Dashboard oeffnen:** http://localhost:3000
 
@@ -103,3 +103,4 @@ Das System funktioniert auch ohne importierte Daten — die Radar-Response entha
 | `EPO_OPS_CONSUMER_SECRET` | `""` | EPO API Secret |
 | `CORDIS_API_KEY` | `""` | CORDIS API Key (optional) |
 | `OPENAIRE_ACCESS_TOKEN` | `""` | OpenAIRE Token (optional) |
+| `GLEIF_CACHE_DB_PATH` | `data/gleif_cache.db` | GLEIF-Cache-Datenbank |

@@ -151,7 +151,7 @@ export default function FundingPanel({ data, selectedActor }) {
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" horizontal={true} vertical={false} />
                 <XAxis dataKey="year" tick={{ fill: '#5c6370', fontSize: 10 }} tickLine={false} />
                 <YAxis tick={{ fill: '#5c6370', fontSize: 10 }} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={TOOLTIP} formatter={(value, name) => [`${value}M EUR`, name]} />
+                <Tooltip contentStyle={TOOLTIP} labelStyle={{ color: '#f1f0ee' }} itemStyle={{ color: '#e5e7eb' }} formatter={(value, name) => [`${value}M EUR`, name]} />
                 <Legend wrapperStyle={{ fontSize: 10 }} />
                 {stackedProgrammes.filter(p => !hiddenProgs.has(p)).map(prog => (
                   <Bar key={prog} dataKey={prog} stackId="funding" fill={PROGRAMME_COLORS[prog] || PROGRAMME_COLORS.UNKNOWN} />
@@ -162,7 +162,7 @@ export default function FundingPanel({ data, selectedActor }) {
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" horizontal={true} vertical={false} />
                 <XAxis dataKey="year" tick={{ fill: '#5c6370', fontSize: 10 }} tickLine={false} />
                 <YAxis tick={{ fill: '#5c6370', fontSize: 10 }} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={TOOLTIP} formatter={(value) => [`${value}M EUR`, 'Förderung']} />
+                <Tooltip contentStyle={TOOLTIP} labelStyle={{ color: '#f1f0ee' }} itemStyle={{ color: '#e5e7eb' }} formatter={(value) => [`${value}M EUR`, 'Förderung']} />
                 <Bar dataKey="funding_m" fill="#e8917a" radius={[3, 3, 0, 0]} />
               </BarChart>
             )}

@@ -26,7 +26,6 @@ class MaturityPanel(BaseModel):
     phase_de: str = ""
     confidence: float = 0.0
     cagr: float = 0.0
-    martini_john_ratio: float = 0.0
     maturity_percent: float = 0.0
     saturation_level: float = 0.0
     inflection_year: float = 0.0
@@ -34,7 +33,6 @@ class MaturityPanel(BaseModel):
     fit_model: str = ""
     time_series: list[dict[str, Any]] = []
     s_curve_fitted: list[dict[str, Any]] = []
-    forecast: list[dict[str, Any]] = []
 
 
 class LandscapePanel(BaseModel):
@@ -72,6 +70,7 @@ class FundingPanel(BaseModel):
     by_programme: list[dict[str, Any]] = []
     time_series: list[dict[str, Any]] = []
     time_series_by_programme: list[dict[str, Any]] = []
+    instrument_breakdown: list[dict[str, Any]] = []
 
 
 class CpcFlowPanel(BaseModel):
@@ -85,6 +84,43 @@ class CpcFlowPanel(BaseModel):
     cpc_level: int = 4
     year_data: dict[str, Any] = {}
     cpc_descriptions: dict[str, str] = {}
+
+
+class GeographicPanel(BaseModel):
+    """UC6: Geografie-Panel."""
+
+    total_countries: int = 0
+    total_cities: int = 0
+    cross_border_share: float = 0.0
+    country_distribution: list[dict[str, Any]] = []
+    city_distribution: list[dict[str, Any]] = []
+    collaboration_pairs: list[dict[str, Any]] = []
+
+
+class ResearchImpactPanel(BaseModel):
+    """UC7: Research-Impact-Panel."""
+
+    h_index: int = 0
+    avg_citations: float = 0.0
+    total_papers: int = 0
+    influential_ratio: float = 0.0
+    citation_trend: list[dict[str, Any]] = []
+    top_papers: list[dict[str, Any]] = []
+    top_venues: list[dict[str, Any]] = []
+    publication_types: list[dict[str, Any]] = []
+
+
+class TemporalPanel(BaseModel):
+    """UC8: Temporal-Dynamik-Panel."""
+
+    new_entrant_rate: float = 0.0
+    persistence_rate: float = 0.0
+    dominant_programme: str = ""
+    actor_timeline: list[dict[str, Any]] = []
+    programme_evolution: list[dict[str, Any]] = []
+    entrant_persistence_trend: list[dict[str, Any]] = []
+    instrument_evolution: list[dict[str, Any]] = []
+    technology_breadth: list[dict[str, Any]] = []
 
 
 # --- Response: Explainability ---
@@ -102,7 +138,7 @@ class ExplainabilityMetadata(BaseModel):
 # --- Response: Gesamt-Radar ---
 
 class RadarResponse(BaseModel):
-    """Komplette Radar-Antwort mit allen 5 Panels."""
+    """Komplette Radar-Antwort mit allen 8 Panels."""
 
     technology: str
     analysis_period: str
@@ -111,4 +147,7 @@ class RadarResponse(BaseModel):
     competitive: CompetitivePanel = CompetitivePanel()
     funding: FundingPanel = FundingPanel()
     cpc_flow: CpcFlowPanel = CpcFlowPanel()
+    geographic: GeographicPanel = GeographicPanel()
+    research_impact: ResearchImpactPanel = ResearchImpactPanel()
+    temporal: TemporalPanel = TemporalPanel()
     explainability: ExplainabilityMetadata = ExplainabilityMetadata()

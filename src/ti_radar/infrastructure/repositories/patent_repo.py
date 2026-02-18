@@ -399,6 +399,113 @@ class PatentRepository:
                 for row in await cursor.fetchall()
             ]
 
+    async def count_families_by_year(
+        self, query: str, *, start_year: int | None = None, end_year: int | None = None
+    ) -> list[dict[str, int]]:
+        """Unique patent families (COUNT DISTINCT family_id) per year."""
+        sql = """
+            SELECT SUBSTR(p.publication_date, 1, 4) AS year,
+                   COUNT(DISTINCT p.family_id) AS count
+            FROM patents_fts fts
+            JOIN patents p ON p.id = fts.rowid
+            WHERE patents_fts MATCH ?
+              AND p.publication_date IS NOT NULL
+              AND LENGTH(p.publication_date) >= 4
+              AND p.family_id IS NOT NULL
+        """
+        params: list[str | int] = [query]
+
+        if start_year:
+            sql += " AND SUBSTR(p.publication_date, 1, 4) >= ?"
+            params.append(str(start_year))
+        if end_year:
+            sql += " AND SUBSTR(p.publication_date, 1, 4) <= ?"
+            params.append(str(end_year))
+
+        sql += " GROUP BY year ORDER BY year"
+
+        async with aiosqlite.connect(self._db_path) as db:
+            cursor = await db.execute(sql, params)
+            return [{"year": int(row[0]), "count": row[1]} for row in await cursor.fetchall()]
+
+    async def count_by_applicant_country(
+        self,
+        query: str,
+        *,
+        start_year: int | None = None,
+        end_year: int | None = None,
+        limit: int = 30,
+    ) -> list[dict[str, str | int]]:
+        """Patente pro Anmelder-Land (aus kommasepariertem applicant_countries)."""
+        sql = """
+            SELECT p.applicant_countries
+            FROM patents_fts fts
+            JOIN patents p ON p.id = fts.rowid
+            WHERE patents_fts MATCH ?
+              AND p.applicant_countries IS NOT NULL
+              AND p.applicant_countries != ''
+        """
+        params: list[str | int] = [query]
+
+        if start_year:
+            sql += " AND p.publication_date >= ?"
+            params.append(f"{start_year}-01-01")
+        if end_year:
+            sql += " AND p.publication_date <= ?"
+            params.append(f"{end_year}-12-31")
+
+        async with aiosqlite.connect(self._db_path) as db:
+            cursor = await db.execute(sql, params)
+            rows = await cursor.fetchall()
+
+        counts: dict[str, int] = {}
+        for row in rows:
+            for country in str(row[0]).split(","):
+                c = country.strip().upper()
+                if c and len(c) == 2:
+                    counts[c] = counts.get(c, 0) + 1
+
+        sorted_items = sorted(counts.items(), key=lambda x: x[1], reverse=True)
+        return [{"country": c, "count": n} for c, n in sorted_items[:limit]]
+
+    async def top_applicants_by_year(
+        self,
+        query: str,
+        *,
+        start_year: int | None = None,
+        end_year: int | None = None,
+        limit: int = 20,
+    ) -> list[dict[str, str | int]]:
+        """Top-Anmelder pro Jahr fuer Temporal-Analyse."""
+        sql = """
+            SELECT p.applicant_names,
+                   SUBSTR(p.publication_date, 1, 4) AS year,
+                   COUNT(*) AS count
+            FROM patents_fts fts
+            JOIN patents p ON p.id = fts.rowid
+            WHERE patents_fts MATCH ?
+              AND p.applicant_names IS NOT NULL AND p.applicant_names != ''
+              AND p.publication_date IS NOT NULL AND LENGTH(p.publication_date) >= 4
+        """
+        params: list[str | int] = [query]
+
+        if start_year:
+            sql += " AND SUBSTR(p.publication_date, 1, 4) >= ?"
+            params.append(str(start_year))
+        if end_year:
+            sql += " AND SUBSTR(p.publication_date, 1, 4) <= ?"
+            params.append(str(end_year))
+
+        sql += " GROUP BY p.applicant_names, year ORDER BY count DESC LIMIT ?"
+        params.append(limit * 10)
+
+        async with aiosqlite.connect(self._db_path) as db:
+            cursor = await db.execute(sql, params)
+            return [
+                {"name": row[0], "year": int(row[1]), "count": row[2]}
+                for row in await cursor.fetchall()
+            ]
+
     async def total_count(self) -> int:
         """Gesamtanzahl Patente in der DB."""
         async with aiosqlite.connect(self._db_path) as db:

@@ -5,6 +5,7 @@ import DownloadButton from './DownloadButton'
 import ForceGraph from './ForceGraph'
 import ActorTable from './ActorTable'
 import { exportCSV } from '../utils/export'
+import { toTitleCase } from '../utils/format'
 
 const BAR_COLORS = ['#e8917a', '#e09b87', '#d8a594', '#d0afa1', '#c8b9ae', '#f0abfc', '#d4a0e0', '#9b8ab8', '#fbbf24', '#94a3b8']
 
@@ -27,11 +28,15 @@ export default function CompetitivePanel({ data, onSelectActor }) {
 
   if (!data) return <PanelSkeleton title="Wettbewerb" />
 
-  const actors = (data.top_actors || []).slice(0, 8).map(a => ({
-    ...a,
-    short: a.name?.length > 25 ? a.name.substring(0, 22) + '...' : a.name,
-    pct: Math.round((a.share || 0) * 1000) / 10,
-  }))
+  const actors = (data.top_actors || []).slice(0, 8).map(a => {
+    const name = toTitleCase(a.name)
+    return {
+      ...a,
+      name,
+      short: name.length > 25 ? name.substring(0, 22) + '...' : name,
+      pct: Math.round((a.share || 0) * 1000) / 10,
+    }
+  })
 
   const levelInfo = HHI_LABELS[data.concentration_level] || HHI_LABELS.Low
 
@@ -94,9 +99,11 @@ export default function CompetitivePanel({ data, onSelectActor }) {
             <BarChart data={actors} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" horizontal={false} />
               <XAxis type="number" tick={{ fill: '#5c6370', fontSize: 10 }} tickLine={false} axisLine={false} />
-              <YAxis type="category" dataKey="short" tick={{ fill: '#5c6370', fontSize: 9 }} width={100} tickLine={false} axisLine={false} />
+              <YAxis type="category" dataKey="short" tick={{ fill: '#5c6370', fontSize: 9 }} width={100} tickLine={false} axisLine={false} interval={0} />
               <Tooltip
                 contentStyle={TOOLTIP}
+                labelStyle={{ color: '#f1f0ee' }}
+                itemStyle={{ color: '#e5e7eb' }}
                 formatter={(value) => [value, 'Aktivitäten']}
                 labelFormatter={(label) => {
                   const actor = actors.find(a => a.short === label)

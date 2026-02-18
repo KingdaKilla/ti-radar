@@ -35,14 +35,23 @@ async def analyze_maturity(
     patent_years: dict[int, int] = {}
     effective_end_year = end_year
 
-    # Patent-Zeitreihe
+    # Patent-Zeitreihe (dedupliziert nach Patent-Familien)
     if settings.patents_db_available:
         try:
             repo = PatentRepository(settings.patents_db_path)
-            rows = await repo.count_by_year(
+            # Primaer: unique families (Lee et al. 2016 — Dopplungen vermeiden)
+            rows = await repo.count_families_by_year(
                 technology, start_year=start_year, end_year=end_year
             )
             patent_years = {r["year"]: r["count"] for r in rows}
+            # Fallback auf count_by_year falls keine family_id vorhanden
+            if not patent_years:
+                rows = await repo.count_by_year(
+                    technology, start_year=start_year, end_year=end_year
+                )
+                patent_years = {r["year"]: r["count"] for r in rows}
+            else:
+                methods.append("Patent-Familien-Deduplizierung (DISTINCT family_id)")
             if patent_years:
                 sources.append("EPO DOCDB (lokal)")
 
@@ -143,7 +152,6 @@ async def analyze_maturity(
         phase_de=phase_de,
         confidence=confidence,
         cagr=round(growth_rate, 2),
-        martini_john_ratio=0.0,
         maturity_percent=maturity_pct,
         saturation_level=sat_level,
         inflection_year=inflection,
@@ -151,7 +159,6 @@ async def analyze_maturity(
         fit_model=model_name,
         time_series=time_series,
         s_curve_fitted=s_curve_fitted,
-        forecast=[],
     )
 
     return panel, sources, methods, warnings

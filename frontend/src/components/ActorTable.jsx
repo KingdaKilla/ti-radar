@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { toTitleCase } from '../utils/format'
 
 const COLUMNS = [
   { key: 'rank', label: '#', align: 'text-right' },
@@ -83,8 +84,8 @@ export default function ActorTable({ actors }) {
             {sorted.map((actor, i) => (
               <tr key={i} className="border-b border-white/[0.04] hover:bg-white/[0.04] transition-colors">
                 <td className="py-1.5 px-2 text-right text-[#5c6370]">{actor.rank}</td>
-                <td className="py-1.5 px-2 text-[#e5e7eb] font-mono text-[10px]" title={actor.name}>
-                  {actor.name?.length > 30 ? actor.name.slice(0, 27) + '...' : actor.name}
+                <td className="py-1.5 px-2 text-[#e5e7eb] font-mono text-[10px]" title={toTitleCase(actor.name)}>
+                  {(() => { const n = toTitleCase(actor.name); return n.length > 30 ? n.slice(0, 27) + '...' : n })()}
                 </td>
                 <td className="py-1.5 px-2 text-right text-[#9ca3af]">{actor.patents?.toLocaleString()}</td>
                 <td className="py-1.5 px-2 text-right text-[#9ca3af]">{actor.projects?.toLocaleString()}</td>

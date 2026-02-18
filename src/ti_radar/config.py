@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     # OpenAIRE (optional)
     openaire_access_token: str = ""
 
+    # GLEIF Cache (optional)
+    gleif_cache_db_path: str = "data/gleif_cache.db"
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
     @property

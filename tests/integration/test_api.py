@@ -271,3 +271,30 @@ class TestRadarEndpoint:
         assert "full_actors" in comp
         assert isinstance(comp["network_nodes"], list)
         assert isinstance(comp["full_actors"], list)
+
+    def test_radar_has_new_panels(self, client: TestClient):
+        """RadarResponse enthaelt UC6/UC7/UC8 Panels."""
+        response = client.post("/api/v1/radar", json={
+            "technology": "quantum",
+            "years": 10,
+        })
+        assert response.status_code == 200
+        data = response.json()
+        # UC6 Geographic
+        assert "geographic" in data
+        geo = data["geographic"]
+        assert "total_countries" in geo
+        assert "country_distribution" in geo
+        assert "cross_border_share" in geo
+        # UC7 Research Impact
+        assert "research_impact" in data
+        ri = data["research_impact"]
+        assert "h_index" in ri
+        assert "total_papers" in ri
+        assert "top_papers" in ri
+        # UC8 Temporal
+        assert "temporal" in data
+        temp = data["temporal"]
+        assert "new_entrant_rate" in temp
+        assert "persistence_rate" in temp
+        assert "actor_timeline" in temp

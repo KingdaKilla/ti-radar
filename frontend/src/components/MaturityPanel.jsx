@@ -58,7 +58,7 @@ export default function MaturityPanel({ data }) {
           <h3 className="text-lg font-semibold">Reifegrad (UC2)</h3>
           <DownloadButton onClick={() => {
             const rows = chartData.map(t => [
-              t.year, t.count || 0, t.cumulative || 0, t.fitted ?? '',
+              t.year, t.patents || 0, t.cumulative || 0, t.fitted ?? '',
             ])
             exportCSV('uc2_reifegrad.csv', ['Jahr', 'Patente', 'Kumulativ', 'S-Curve Fit'], rows)
           }} />
@@ -119,8 +119,8 @@ export default function MaturityPanel({ data }) {
                     )}
                     <XAxis dataKey="year" tick={TICK} tickLine={false} />
                     <YAxis tick={TICK} tickLine={false} axisLine={false} label={{ value: 'Kumulativ', angle: -90, position: 'insideLeft', fill: '#5c6370', fontSize: 11 }} />
-                    <Tooltip contentStyle={TOOLTIP} labelStyle={{ color: '#f1f0ee' }} />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Tooltip contentStyle={TOOLTIP} labelStyle={{ color: '#f1f0ee' }} itemStyle={{ color: '#e5e7eb' }} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} verticalAlign="top" align="right" />
                     <Line type="monotone" dataKey="cumulative" stroke="rgba(241,240,238,0.4)" strokeWidth={2} dot={{ r: 2, fill: 'rgba(241,240,238,0.5)' }} name="Kumulativ" />
                     {data.s_curve_fitted?.length > 0 && (
                       <Line type="monotone" dataKey="fitted" stroke="#e8917a" strokeWidth={2.5} dot={false} strokeDasharray="6 3" name="S-Curve Fit" />
@@ -131,8 +131,8 @@ export default function MaturityPanel({ data }) {
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
                     <XAxis dataKey="year" tick={TICK} tickLine={false} />
                     <YAxis tick={TICK} tickLine={false} axisLine={false} label={{ value: 'Patente/Jahr', angle: -90, position: 'insideLeft', fill: '#5c6370', fontSize: 11 }} />
-                    <Tooltip contentStyle={TOOLTIP} labelStyle={{ color: '#f1f0ee' }} />
-                    <Bar dataKey="count" fill="#e8917a" radius={[3, 3, 0, 0]} name="Patente" fillOpacity={0.7} />
+                    <Tooltip contentStyle={TOOLTIP} labelStyle={{ color: '#f1f0ee' }} itemStyle={{ color: '#e5e7eb' }} />
+                    <Bar dataKey="patents" fill="#e8917a" radius={[3, 3, 0, 0]} name="Patente" fillOpacity={0.7} />
                   </BarChart>
                 )}
               </ResponsiveContainer>

@@ -144,3 +144,48 @@ class TestRadarResponse:
         r2 = RadarResponse.model_validate(data)
         assert r2.technology == r.technology
         assert r2.maturity.phase == r.maturity.phase
+
+
+class TestNewPanels:
+    """Tests fuer neue UC6-UC8 Panel-Modelle."""
+
+    def test_geographic_panel_defaults(self):
+        from ti_radar.api.schemas import GeographicPanel
+        p = GeographicPanel()
+        assert p.total_countries == 0
+        assert p.total_cities == 0
+        assert p.cross_border_share == 0.0
+        assert p.country_distribution == []
+        assert p.city_distribution == []
+        assert p.collaboration_pairs == []
+
+    def test_research_impact_panel_defaults(self):
+        from ti_radar.api.schemas import ResearchImpactPanel
+        p = ResearchImpactPanel()
+        assert p.h_index == 0
+        assert p.avg_citations == 0.0
+        assert p.total_papers == 0
+        assert p.influential_ratio == 0.0
+        assert p.citation_trend == []
+        assert p.top_papers == []
+        assert p.top_venues == []
+        assert p.publication_types == []
+
+    def test_temporal_panel_defaults(self):
+        from ti_radar.api.schemas import TemporalPanel
+        p = TemporalPanel()
+        assert p.new_entrant_rate == 0.0
+        assert p.persistence_rate == 0.0
+        assert p.dominant_programme == ""
+        assert p.actor_timeline == []
+        assert p.programme_evolution == []
+        assert p.entrant_persistence_trend == []
+        assert p.instrument_evolution == []
+        assert p.technology_breadth == []
+
+    def test_radar_response_has_new_panels(self):
+        from ti_radar.api.schemas import RadarResponse
+        r = RadarResponse(technology="test", analysis_period="2020-2025")
+        assert hasattr(r, "geographic")
+        assert hasattr(r, "research_impact")
+        assert hasattr(r, "temporal")

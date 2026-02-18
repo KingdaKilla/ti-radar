@@ -1,22 +1,12 @@
-import { useState } from 'react'
-import { LineChart, Line, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Legend, ReferenceLine, CartesianGrid } from 'recharts'
+import { useState, useMemo } from 'react'
+import { LineChart, Line, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, Legend, ReferenceLine, CartesianGrid } from 'recharts'
 import MetricCard from './MetricCard'
 import DownloadButton from './DownloadButton'
 import { exportCSV } from '../utils/export'
+import { COUNTRY_NAMES, NON_COUNTRY_CODES, isEuropean } from '../utils/countries'
 
 const TOOLTIP = { backgroundColor: '#141c2e', border: '1px solid rgba(232,145,122,0.2)', borderRadius: 8 }
 const TICK = { fill: '#5c6370', fontSize: 11 }
-
-const COUNTRY_NAMES = {
-  DE: 'Deutschland', FR: 'Frankreich', US: 'USA', GB: 'Großbritannien',
-  JP: 'Japan', CN: 'China', KR: 'Südkorea', NL: 'Niederlande',
-  CH: 'Schweiz', IT: 'Italien', SE: 'Schweden', ES: 'Spanien',
-  AT: 'Österreich', BE: 'Belgien', FI: 'Finnland', DK: 'Dänemark',
-  NO: 'Norwegen', IL: 'Israel', CA: 'Kanada', AU: 'Australien',
-  TW: 'Taiwan', IN: 'Indien', SG: 'Singapur', IE: 'Irland',
-  PT: 'Portugal', PL: 'Polen', CZ: 'Tschechien', HU: 'Ungarn',
-  RO: 'Rumänien', GR: 'Griechenland', LU: 'Luxemburg', EP: 'Europa (EP)',
-}
 
 function GrowthTooltipContent({ active, payload, label }) {
   if (!active || !payload?.length) return null
@@ -45,12 +35,20 @@ const MODES = [
 export default function LandscapePanel({ data }) {
   const [chartMode, setChartMode] = useState('wachstum')
 
+  const countries = useMemo(() => {
+    if (!data?.top_countries) return []
+    const raw = data.top_countries.filter(c => !NON_COUNTRY_CODES.has(c.country)).slice(0, 12).map(c => ({
+      ...c,
+      country_name: COUNTRY_NAMES[c.country] || c.country,
+      isEu: isEuropean(c.country),
+    }))
+    const eu = raw.filter(c => c.isEu).sort((a, b) => (b.patents + b.projects) - (a.patents + a.projects))
+    const nonEu = raw.filter(c => !c.isEu).sort((a, b) => (b.patents + b.projects) - (a.patents + a.projects))
+    return [...eu, ...nonEu]
+  }, [data?.top_countries])
+
   if (!data) return <PanelSkeleton title="Landschaft" />
 
-  const countries = (data.top_countries || []).slice(0, 8).map(c => ({
-    ...c,
-    country_name: COUNTRY_NAMES[c.country] || c.country,
-  }))
   const hasPublications = data.total_publications > 0
   const growthData = (data.time_series || []).filter(d => d.patents_growth !== undefined)
   const absoluteData = data.time_series || []
@@ -132,15 +130,30 @@ export default function LandscapePanel({ data }) {
       )}
 
       {countries.length > 0 && (
-        <div className="h-48">
-          <p className="text-xs text-[#5c6370] mb-1">Top Länder</p>
+        <div className="h-56 sm:h-64">
+          <div className="flex items-center gap-3 mb-1">
+            <p className="text-xs text-[#5c6370]">Top Länder (Europa-Fokus)</p>
+            <div className="flex items-center gap-3 text-[10px]">
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#e8917a]" />EU/EEA</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#5c6370]" />Nicht-EU</span>
+            </div>
+          </div>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={countries} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" horizontal={false} />
               <XAxis type="number" tick={{ fill: '#5c6370', fontSize: 10 }} tickLine={false} axisLine={false} />
-              <YAxis type="category" dataKey="country_name" tick={{ fill: '#5c6370', fontSize: 10 }} width={100} tickLine={false} axisLine={false} />
-              <Tooltip contentStyle={TOOLTIP} />
-              <Bar dataKey="patents" stackId="1" fill="#e8917a" name="Patente" />
-              <Bar dataKey="projects" stackId="1" fill="#f0abfc" name="Projekte" />
+              <YAxis type="category" dataKey="country_name" tick={{ fill: '#5c6370', fontSize: 10 }} width={110} tickLine={false} axisLine={false} interval={0} />
+              <Tooltip contentStyle={TOOLTIP} labelStyle={{ color: '#f1f0ee' }} itemStyle={{ color: '#e5e7eb' }} formatter={(value, name) => [value, name === 'patents' ? 'Patente' : 'Projekte']} />
+              <Bar dataKey="patents" stackId="1" name="Patente" radius={[0, 0, 0, 0]}>
+                {countries.map((c, i) => (
+                  <Cell key={i} fill={c.isEu ? '#e8917a' : '#5c6370'} />
+                ))}
+              </Bar>
+              <Bar dataKey="projects" stackId="1" name="Projekte" radius={[0, 3, 3, 0]}>
+                {countries.map((c, i) => (
+                  <Cell key={i} fill={c.isEu ? '#f0abfc' : '#3f4550'} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>

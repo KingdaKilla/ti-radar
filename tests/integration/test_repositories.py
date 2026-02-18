@@ -190,6 +190,9 @@ def cordis_db(tmp_path: Path) -> str:
             name TEXT,
             country TEXT,
             role TEXT,
+            city TEXT,
+            sme TEXT,
+            ec_contribution REAL,
             FOREIGN KEY (project_id) REFERENCES projects(id)
         )
     """)
@@ -223,22 +226,23 @@ def cordis_db(tmp_path: Path) -> str:
         )
 
     orgs = [
-        (1, "TU MUNICH", "DE", "coordinator"),
-        (1, "CNRS", "FR", "partner"),
-        (2, "THALES SA", "FR", "coordinator"),
-        (2, "FRAUNHOFER", "DE", "partner"),
-        (3, "KPN NV", "NL", "coordinator"),
-        (3, "TU DELFT", "NL", "partner"),
-        (3, "CNRS", "FR", "partner"),
-        (4, "FRAUNHOFER", "DE", "coordinator"),
-        (5, "ETH ZURICH", "CH", "coordinator"),
-        (5, "TU MUNICH", "DE", "partner"),
+        (1, "TU MUNICH", "DE", "coordinator", "Munich", "no", 2000000),
+        (1, "CNRS", "FR", "partner", "Paris", "no", 1500000),
+        (2, "THALES SA", "FR", "coordinator", "Paris", "no", 1200000),
+        (2, "FRAUNHOFER", "DE", "partner", "Berlin", "no", 800000),
+        (3, "KPN NV", "NL", "coordinator", "The Hague", "no", 3000000),
+        (3, "TU DELFT", "NL", "partner", "Delft", "no", 2000000),
+        (3, "CNRS", "FR", "partner", "Paris", "no", 1500000),
+        (4, "FRAUNHOFER", "DE", "coordinator", "Berlin", "no", 1500000),
+        (5, "ETH ZURICH", "CH", "coordinator", "Zurich", "no", 2000000),
+        (5, "TU MUNICH", "DE", "partner", "Munich", "no", 1000000),
     ]
 
-    for project_id, name, country, role in orgs:
+    for project_id, name, country, role, city, sme, ec_contribution in orgs:
         conn.execute(
-            "INSERT INTO organizations (project_id, name, country, role) VALUES (?, ?, ?, ?)",
-            (project_id, name, country, role),
+            "INSERT INTO organizations (project_id, name, country, role, city, sme, ec_contribution) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (project_id, name, country, role, city, sme, ec_contribution),
         )
 
     conn.execute("""
@@ -366,6 +370,34 @@ class TestPatentRepository:
         repo = PatentRepository(db_path)
         result = await repo.get_last_full_year()
         assert result is None
+
+    async def test_count_families_by_year(self, patent_db: str):
+        """Distinct family_id count per year."""
+        repo = PatentRepository(patent_db)
+        result = await repo.count_families_by_year("quantum")
+        assert len(result) > 0
+        assert all("year" in r and "count" in r for r in result)
+        total = sum(r["count"] for r in result)
+        assert total == 8
+
+    async def test_count_by_applicant_country(self, patent_db: str):
+        """Parse comma-separated applicant_countries and aggregate."""
+        repo = PatentRepository(patent_db)
+        result = await repo.count_by_applicant_country("quantum")
+        assert len(result) > 0
+        countries = {r["country"] for r in result}
+        assert "DE" in countries
+        assert "US" in countries
+        assert "FR" in countries
+
+    async def test_top_applicants_by_year(self, patent_db: str):
+        """Top applicants with year breakdown."""
+        repo = PatentRepository(patent_db)
+        result = await repo.top_applicants_by_year("quantum")
+        assert len(result) > 0
+        assert all("name" in r and "year" in r and "count" in r for r in result)
+        siemens = [r for r in result if r["name"] == "SIEMENS AG"]
+        assert len(siemens) >= 2
 
 
 # --- CordisRepository ---
@@ -518,6 +550,51 @@ class TestCordisRepository:
         tu = [r for r in result if r["name"] == "TU MUNICH"]
         if tu:
             assert tu[0]["country"] == "DE"
+
+
+class TestCordisNewMethods:
+    """Tests fuer neue CORDIS-Repository-Methoden."""
+
+    async def test_orgs_by_city(self, cordis_db: str):
+        repo = CordisRepository(cordis_db)
+        result = await repo.orgs_by_city("quantum")
+        assert isinstance(result, list)
+        # Fixture hat city-Werte, also sollten Ergebnisse kommen
+        assert len(result) > 0
+        assert all("city" in r and "country" in r and "count" in r for r in result)
+
+    async def test_cross_border_projects(self, cordis_db: str):
+        repo = CordisRepository(cordis_db)
+        result = await repo.cross_border_projects("quantum")
+        assert "total_projects" in result
+        assert "cross_border_count" in result
+        assert "cross_border_share" in result
+        assert result["total_projects"] > 0
+
+    async def test_cross_border_with_threshold_2(self, cordis_db: str):
+        repo = CordisRepository(cordis_db)
+        result = await repo.cross_border_projects("quantum", min_countries=2)
+        assert result["cross_border_count"] > 0
+
+    async def test_country_collaboration_pairs(self, cordis_db: str):
+        repo = CordisRepository(cordis_db)
+        result = await repo.country_collaboration_pairs("quantum")
+        assert len(result) > 0
+        assert all("country_a" in r and "country_b" in r and "count" in r for r in result)
+
+    async def test_orgs_by_year(self, cordis_db: str):
+        repo = CordisRepository(cordis_db)
+        result = await repo.orgs_by_year("quantum")
+        assert len(result) > 0
+        assert all("name" in r and "year" in r and "count" in r for r in result)
+
+    async def test_funding_by_instrument(self, cordis_db: str):
+        repo = CordisRepository(cordis_db)
+        result = await repo.funding_by_instrument("quantum")
+        assert len(result) > 0
+        assert all("scheme" in r and "year" in r and "count" in r for r in result)
+        schemes = {r["scheme"] for r in result}
+        assert "RIA" in schemes
 
 
 class TestPatentCoApplicants:

@@ -74,6 +74,16 @@ async def analyze_funding(
         logger.warning("Funding year/programme query failed: %s", e)
         warnings.append(f"Programm-Zeitreihe fehlgeschlagen: {e}")
 
+    # Instrument-Breakdown (RIA, IA, CSA, etc.)
+    instrument_data: list[dict[str, str | int | float]] = []
+    try:
+        instrument_data = await repo.funding_by_instrument(
+            technology, start_year=start_year, end_year=end_year
+        )
+    except Exception as e:
+        logger.warning("Funding instrument query failed: %s", e)
+        warnings.append(f"Instrument-Abfrage fehlgeschlagen: {e}")
+
     # Gesamtfoerderung (null-safe)
     total_funding = sum(float(f["funding"] or 0) for f in funding_years)
     total_projects = sum(int(f["count"] or 0) for f in funding_years)
@@ -116,6 +126,16 @@ async def analyze_funding(
             "projects": int(yp["count"] or 0),
         })
 
+    # Instrument-Breakdown formatieren
+    instrument_breakdown: list[dict[str, Any]] = []
+    for inst in instrument_data:
+        instrument_breakdown.append({
+            "instrument": str(inst.get("funding_scheme") or "UNKNOWN"),
+            "year": int(inst.get("year") or 0),
+            "count": int(inst.get("count") or 0),
+            "funding": round(float(inst.get("funding") or 0), 2),
+        })
+
     methods.append("EU-Foerderdaten-Aggregation (FP7, H2020, Horizon Europe)")
 
     panel = FundingPanel(
@@ -125,6 +145,7 @@ async def analyze_funding(
         by_programme=by_programme,
         time_series=time_series,
         time_series_by_programme=time_series_by_programme,
+        instrument_breakdown=instrument_breakdown,
     )
 
     return panel, sources, methods, warnings

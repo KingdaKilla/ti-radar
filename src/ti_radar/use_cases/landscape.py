@@ -8,6 +8,7 @@ from typing import Any, cast
 
 from ti_radar.api.schemas import LandscapePanel
 from ti_radar.config import Settings
+from ti_radar.domain.metrics import merge_country_data
 from ti_radar.infrastructure.adapters.openaire_adapter import OpenAIREAdapter
 from ti_radar.infrastructure.repositories.cordis_repo import CordisRepository
 from ti_radar.infrastructure.repositories.patent_repo import PatentRepository
@@ -132,7 +133,7 @@ async def analyze_landscape(
     )
 
     # Top Countries zusammenfuehren
-    top_countries = _merge_countries(patent_countries, project_countries)
+    top_countries = merge_country_data(patent_countries, project_countries, limit=20)
 
     panel = LandscapePanel(
         total_patents=total_patents,
@@ -201,33 +202,3 @@ def _merge_time_series(
     return series
 
 
-def _merge_countries(
-    patent_countries: list[dict[str, str | int]],
-    project_countries: list[dict[str, str | int]],
-) -> list[dict[str, Any]]:
-    """Laender-Statistiken zusammenfuehren (Patente + Projekte)."""
-    country_data: dict[str, dict[str, int]] = {}
-
-    for entry in patent_countries:
-        code = str(entry["country"])
-        if code not in country_data:
-            country_data[code] = {"patents": 0, "projects": 0}
-        country_data[code]["patents"] = int(entry["count"])
-
-    for entry in project_countries:
-        code = str(entry["country"])
-        if code not in country_data:
-            country_data[code] = {"patents": 0, "projects": 0}
-        country_data[code]["projects"] = int(entry["count"])
-
-    result: list[dict[str, Any]] = []
-    for code, data in country_data.items():
-        result.append({
-            "country": code,
-            "patents": data["patents"],
-            "projects": data["projects"],
-            "total": data["patents"] + data["projects"],
-        })
-
-    result.sort(key=lambda x: x["total"], reverse=True)
-    return result[:20]

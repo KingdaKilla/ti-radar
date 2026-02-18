@@ -168,3 +168,42 @@ def classify_maturity_phase(
         confidence = 0.4
 
     return phase_en, phase_de, round(confidence, 2)
+
+
+def merge_country_data(
+    patent_countries: list[dict[str, str | int]],
+    cordis_countries: list[dict[str, str | int]],
+    *,
+    limit: int | None = None,
+) -> list[dict[str, str | int]]:
+    """
+    Laender-Daten aus Patenten und CORDIS zusammenfuehren.
+
+    Jeder Eintrag: {country, patents, projects, total}, sortiert nach total.
+    Optional: Ergebnis auf `limit` Laender begrenzen.
+    """
+    data: dict[str, dict[str, int]] = {}
+
+    for entry in patent_countries:
+        code = str(entry["country"])
+        if code not in data:
+            data[code] = {"patents": 0, "projects": 0}
+        data[code]["patents"] = int(entry["count"])
+
+    for entry in cordis_countries:
+        code = str(entry["country"])
+        if code not in data:
+            data[code] = {"patents": 0, "projects": 0}
+        data[code]["projects"] = int(entry["count"])
+
+    result: list[dict[str, str | int]] = []
+    for code, d in data.items():
+        result.append({
+            "country": code,
+            "patents": d["patents"],
+            "projects": d["projects"],
+            "total": d["patents"] + d["projects"],
+        })
+
+    result.sort(key=lambda x: int(x["total"]), reverse=True)
+    return result[:limit] if limit is not None else result
