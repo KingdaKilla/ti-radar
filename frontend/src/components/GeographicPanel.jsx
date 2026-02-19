@@ -2,12 +2,15 @@ import { useMemo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts'
 import MetricCard from './MetricCard'
 import DownloadButton from './DownloadButton'
+import FullscreenButton from './FullscreenButton'
+import { useFullscreen } from '../hooks/useFullscreen'
 import { exportCSV } from '../utils/export'
 import { COUNTRY_NAMES, NON_COUNTRY_CODES, isEuropean } from '../utils/countries'
 
 const TOOLTIP = { backgroundColor: '#141c2e', border: '1px solid rgba(232,145,122,0.2)', borderRadius: 8 }
 
 export default function GeographicPanel({ data }) {
+  const { isFullscreen, toggleFullscreen } = useFullscreen()
   // Europa-Fokus: EU-Laender oben, Nicht-EU unten, jeweils nach total sortiert
   const countries = useMemo(() => {
     if (!data?.country_distribution) return []
@@ -27,13 +30,14 @@ export default function GeographicPanel({ data }) {
   const collabPairs = (data.collaboration_pairs || []).slice(0, 10)
 
   return (
-    <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-6">
+    <div className={isFullscreen ? 'fixed inset-0 z-50 bg-[#0d1117] overflow-y-auto p-8' : 'bg-white/[0.03] border border-white/[0.08] rounded-xl p-6'}>
       <div className="flex items-center gap-1.5 mb-4">
         <h3 className="text-lg font-semibold">Geografie (UC6)</h3>
         <DownloadButton onClick={() => {
           const rows = countries.map(c => [c.country, c.label, c.patents || 0, c.projects || 0, c.total || 0, c.isEu ? 'EU' : ''])
           exportCSV('uc6_geografie.csv', ['Code', 'Land', 'Patente', 'Projekte', 'Gesamt', 'EU'], rows)
         }} />
+        <FullscreenButton isFullscreen={isFullscreen} onClick={toggleFullscreen} />
       </div>
 
       <div className="grid grid-cols-3 gap-3 mb-4">
@@ -47,7 +51,7 @@ export default function GeographicPanel({ data }) {
       </div>
 
       {countries.length > 0 && (
-        <div className="h-56 sm:h-64 mb-4">
+        <div className={`${isFullscreen ? 'h-[60vh]' : 'h-56 sm:h-64'} mb-4`}>
           <div className="flex items-center gap-3 mb-1">
             <p className="text-xs text-[#5c6370]">Länderverteilung (Europa-Fokus)</p>
             <div className="flex items-center gap-3 text-[10px]">
@@ -60,7 +64,7 @@ export default function GeographicPanel({ data }) {
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" horizontal={false} />
               <XAxis type="number" tick={{ fill: '#5c6370', fontSize: 10 }} tickLine={false} axisLine={false} />
               <YAxis type="category" dataKey="label" tick={{ fill: '#5c6370', fontSize: 10 }} width={110} tickLine={false} axisLine={false} interval={0} />
-              <Tooltip contentStyle={TOOLTIP} labelStyle={{ color: '#f1f0ee' }} itemStyle={{ color: '#e5e7eb' }} formatter={(value, name) => [value, name === 'patents' ? 'Patente' : 'Projekte']} />
+              <Tooltip contentStyle={TOOLTIP} labelStyle={{ color: '#f1f0ee' }} itemStyle={{ color: '#e5e7eb' }} formatter={(value, name) => [value, name]} />
               <Bar dataKey="patents" stackId="geo" name="Patente" radius={[0, 0, 0, 0]}>
                 {countries.map((c, i) => (
                   <Cell key={i} fill={c.isEu ? '#e8917a' : '#5c6370'} />

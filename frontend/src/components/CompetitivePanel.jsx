@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid } from 'recharts'
 import MetricCard from './MetricCard'
 import DownloadButton from './DownloadButton'
+import FullscreenButton from './FullscreenButton'
+import { useFullscreen } from '../hooks/useFullscreen'
 import ForceGraph from './ForceGraph'
 import ActorTable from './ActorTable'
 import { exportCSV } from '../utils/export'
@@ -25,6 +27,7 @@ const VIEWS = [
 
 export default function CompetitivePanel({ data, onSelectActor }) {
   const [view, setView] = useState('chart')
+  const { isFullscreen, toggleFullscreen } = useFullscreen()
 
   if (!data) return <PanelSkeleton title="Wettbewerb" />
 
@@ -48,7 +51,7 @@ export default function CompetitivePanel({ data, onSelectActor }) {
   })
 
   return (
-    <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-6">
+    <div className={isFullscreen ? 'fixed inset-0 z-50 bg-[#0d1117] overflow-y-auto p-8' : 'bg-white/[0.03] border border-white/[0.08] rounded-xl p-6'}>
       <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
         <div className="flex items-center gap-1.5">
           <h3 className="text-lg font-semibold">Wettbewerb (UC3)</h3>
@@ -59,6 +62,7 @@ export default function CompetitivePanel({ data, onSelectActor }) {
             ])
             exportCSV('uc3_wettbewerb.csv', ['Rang', 'Name', 'Patente', 'Projekte', 'Gesamt', 'Anteil%', 'Land'], rows)
           }} />
+          <FullscreenButton isFullscreen={isFullscreen} onClick={toggleFullscreen} />
         </div>
         {data.concentration_level && (
           <span className={`px-2.5 py-0.5 border rounded-full text-xs ${levelInfo.style}`}>
@@ -93,7 +97,7 @@ export default function CompetitivePanel({ data, onSelectActor }) {
 
       {/* Views */}
       {view === 'chart' && actors.length > 0 && (
-        <div className="h-48 sm:h-56 md:h-64">
+        <div className={isFullscreen ? 'h-[70vh]' : 'h-48 sm:h-56 md:h-64'}>
           <p className="text-xs text-[#5c6370] mb-1">Top Akteure</p>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={actors} layout="vertical">

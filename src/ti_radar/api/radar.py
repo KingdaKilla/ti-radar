@@ -74,9 +74,10 @@ async def analyze_technology(request: RadarRequest) -> RadarResponse:
     tech = request.technology
 
     # Alle 8 UCs parallel ausfuehren (per-UC Timeout, Graceful Degradation)
-    # UC5 (CPC-Jaccard) benoetigt Self-Join auf patent_cpc (237M Zeilen) -> 180s
+    # UC5 (CPC-Jaccard) benoetigt Self-Join auf patent_cpc (237M Zeilen)
+    # Timeout auf 30s wie andere UCs — bei Timeout: leeres Panel + Warnung
     default_timeout = 30.0
-    cpc_timeout = 180.0
+    cpc_timeout = 30.0
 
     uc_tasks_with_timeout: list[tuple[Any, float]] = [
         (analyze_landscape(

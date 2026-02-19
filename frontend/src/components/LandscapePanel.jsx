@@ -2,6 +2,8 @@ import { useState, useMemo } from 'react'
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, Legend, ReferenceLine, ReferenceArea, CartesianGrid } from 'recharts'
 import MetricCard from './MetricCard'
 import DownloadButton from './DownloadButton'
+import FullscreenButton from './FullscreenButton'
+import { useFullscreen } from '../hooks/useFullscreen'
 import { exportCSV } from '../utils/export'
 import { COUNTRY_NAMES, NON_COUNTRY_CODES, isEuropean } from '../utils/countries'
 
@@ -40,6 +42,7 @@ const MODES = [
 
 export default function LandscapePanel({ data, dataCompleteUntil }) {
   const [chartMode, setChartMode] = useState('wachstum')
+  const { isFullscreen, toggleFullscreen } = useFullscreen()
 
   const countries = useMemo(() => {
     if (!data?.top_countries) return []
@@ -60,7 +63,7 @@ export default function LandscapePanel({ data, dataCompleteUntil }) {
   const absoluteData = data.time_series || []
 
   return (
-    <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-6">
+    <div className={isFullscreen ? 'fixed inset-0 z-50 bg-[#0d1117] overflow-y-auto p-8' : 'bg-white/[0.03] border border-white/[0.08] rounded-xl p-6'}>
       <div className="flex items-center gap-1.5 mb-4">
         <h3 className="text-lg font-semibold">Landschaft (UC1)</h3>
         <DownloadButton onClick={() => {
@@ -70,6 +73,7 @@ export default function LandscapePanel({ data, dataCompleteUntil }) {
           ])
           exportCSV('uc1_landschaft.csv', ['Jahr', 'Patente', 'Projekte', 'Publikationen', 'Pat.Wachstum%', 'Proj.Wachstum%', 'Pub.Wachstum%'], rows)
         }} />
+        <FullscreenButton isFullscreen={isFullscreen} onClick={toggleFullscreen} />
       </div>
 
       <div className={`grid ${hasPublications ? 'grid-cols-3' : 'grid-cols-2'} gap-3 mb-4`}>
@@ -81,7 +85,7 @@ export default function LandscapePanel({ data, dataCompleteUntil }) {
       </div>
 
       {(growthData.length > 1 || absoluteData.length > 1) && (
-        <div className="h-48 sm:h-56 md:h-64 mb-4">
+        <div className={`${isFullscreen ? 'h-[45vh]' : 'h-48 sm:h-56 md:h-64'} mb-4`}>
           <div className="flex items-center justify-between mb-1">
             <p className="text-xs text-[#5c6370]">
               {chartMode === 'wachstum' ? 'Wachstumsraten (% YoY)' : 'Absolute Werte'}
@@ -140,7 +144,7 @@ export default function LandscapePanel({ data, dataCompleteUntil }) {
       )}
 
       {countries.length > 0 && (
-        <div className="h-56 sm:h-64">
+        <div className={isFullscreen ? 'h-[40vh]' : 'h-56 sm:h-64'}>
           <div className="flex items-center gap-3 mb-1">
             <p className="text-xs text-[#5c6370]">Top Länder (Europa-Fokus)</p>
             <div className="flex items-center gap-3 text-[10px]">
@@ -153,7 +157,7 @@ export default function LandscapePanel({ data, dataCompleteUntil }) {
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" horizontal={false} />
               <XAxis type="number" tick={{ fill: '#5c6370', fontSize: 10 }} tickLine={false} axisLine={false} />
               <YAxis type="category" dataKey="country_name" tick={{ fill: '#5c6370', fontSize: 10 }} width={110} tickLine={false} axisLine={false} interval={0} />
-              <Tooltip contentStyle={TOOLTIP} labelStyle={{ color: '#f1f0ee' }} itemStyle={{ color: '#e5e7eb' }} formatter={(value, name) => [value, name === 'patents' ? 'Patente' : 'Projekte']} />
+              <Tooltip contentStyle={TOOLTIP} labelStyle={{ color: '#f1f0ee' }} itemStyle={{ color: '#e5e7eb' }} formatter={(value, name) => [value, name]} />
               <Bar dataKey="patents" stackId="1" name="Patente" radius={[0, 0, 0, 0]}>
                 {countries.map((c, i) => (
                   <Cell key={i} fill={c.isEu ? '#e8917a' : '#5c6370'} />

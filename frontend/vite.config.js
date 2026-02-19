@@ -6,8 +6,14 @@ export default defineConfig({
   server: {
     port: 3000,
     proxy: {
-      '/api': 'http://localhost:8000',
-      '/health': 'http://localhost:8000',
+      '/api': {
+        target: 'http://localhost:8000',
+        timeout: 200000,
+      },
+      '/health': {
+        target: 'http://localhost:8000',
+        timeout: 200000,
+      },
     },
   },
 })

@@ -2,6 +2,8 @@ import { useState, useMemo } from 'react'
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, BarChart, Bar, ReferenceArea, ReferenceLine } from 'recharts'
 import MetricCard from './MetricCard'
 import DownloadButton from './DownloadButton'
+import FullscreenButton from './FullscreenButton'
+import { useFullscreen } from '../hooks/useFullscreen'
 import { exportCSV } from '../utils/export'
 import { toTitleCase } from '../utils/format'
 import ChartTooltip from './ChartTooltip'
@@ -21,6 +23,7 @@ const VIEWS = [
 
 export default function TemporalPanel({ data, dataCompleteUntil }) {
   const [view, setView] = useState('dynamics')
+  const { isFullscreen, toggleFullscreen } = useFullscreen()
 
   if (!data) return <PanelSkeleton />
 
@@ -56,13 +59,14 @@ export default function TemporalPanel({ data, dataCompleteUntil }) {
   }, [progEvolution])
 
   return (
-    <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-6">
+    <div className={isFullscreen ? 'fixed inset-0 z-50 bg-[#0d1117] overflow-y-auto p-8' : 'bg-white/[0.03] border border-white/[0.08] rounded-xl p-6'}>
       <div className="flex items-center gap-1.5 mb-4">
         <h3 className="text-lg font-semibold">Temporale Dynamik (UC8)</h3>
         <DownloadButton onClick={() => {
           const rows = entrantTrend.map(t => [t.year, t.total_actors || 0, ((t.new_entrant_rate || 0) * 100).toFixed(1), ((t.persistence_rate || 0) * 100).toFixed(1)])
           exportCSV('uc8_temporal.csv', ['Jahr', 'Akteure gesamt', 'Neueintrittsrate%', 'Verbleibrate%'], rows)
         }} />
+        <FullscreenButton isFullscreen={isFullscreen} onClick={toggleFullscreen} />
       </div>
 
       <div className="grid grid-cols-3 gap-3 mb-4">
@@ -109,7 +113,7 @@ export default function TemporalPanel({ data, dataCompleteUntil }) {
 
       {view === 'dynamics' && dynamicsData.length > 0 && (
         <>
-          <div className="h-40 sm:h-48">
+          <div className={isFullscreen ? 'h-[40vh]' : 'h-40 sm:h-48'}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={dynamicsData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
@@ -122,7 +126,7 @@ export default function TemporalPanel({ data, dataCompleteUntil }) {
               </AreaChart>
             </ResponsiveContainer>
           </div>
-          <div className="h-32 mt-2">
+          <div className={`${isFullscreen ? 'h-[30vh]' : 'h-32'} mt-2`}>
             <p className="text-[10px] text-[#5c6370] mb-1">Eintritts- & Verbleibrate (%)</p>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={dynamicsData}>
@@ -162,7 +166,7 @@ export default function TemporalPanel({ data, dataCompleteUntil }) {
       )}
 
       {view === 'programmes' && progEvolution.length > 0 && (
-        <div className="h-48 sm:h-56">
+        <div className={isFullscreen ? 'h-[65vh]' : 'h-48 sm:h-56'}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={progEvolution}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" horizontal={true} vertical={false} />
@@ -181,7 +185,7 @@ export default function TemporalPanel({ data, dataCompleteUntil }) {
       )}
 
       {view === 'breadth' && breadth.length > 0 && (
-        <div className="h-48 sm:h-56">
+        <div className={isFullscreen ? 'h-[65vh]' : 'h-48 sm:h-56'}>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={breadth}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />

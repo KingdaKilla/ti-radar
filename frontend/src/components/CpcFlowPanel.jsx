@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import MetricCard from './MetricCard'
 import DownloadButton from './DownloadButton'
+import FullscreenButton from './FullscreenButton'
+import { useFullscreen } from '../hooks/useFullscreen'
 import ChordDiagram from './ChordDiagram'
 import { exportCSV } from '../utils/export'
 
@@ -114,6 +116,7 @@ export default function CpcFlowPanel({ data }) {
   const [yearMin, setYearMin] = useState(dataMin)
   const [yearMax, setYearMax] = useState(dataMax)
   const [hovered, setHovered] = useState(null)
+  const { isFullscreen, toggleFullscreen } = useFullscreen()
 
   // Dynamic width via ResizeObserver
   const containerRef = useRef(null)
@@ -194,20 +197,21 @@ export default function CpcFlowPanel({ data }) {
 
   // Calculate dynamic chart widths based on container
   const chartMaxWidth = containerWidth > 0
-    ? Math.min(Math.floor((containerWidth - 80) / 2), 450)
+    ? Math.min(Math.floor((containerWidth - 80) / 2), isFullscreen ? 800 : 450)
     : 385
 
   const handleMinYear = (val) => setYearMin(Math.min(Number(val), yearMax))
   const handleMaxYear = (val) => setYearMax(Math.max(Number(val), yearMin))
 
   return (
-    <div ref={containerRef} className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-6 md:col-span-2">
+    <div ref={containerRef} className={isFullscreen ? 'fixed inset-0 z-50 bg-[#0d1117] overflow-y-auto p-8' : 'bg-white/[0.03] border border-white/[0.08] rounded-xl p-6 md:col-span-2'}>
       <div className="flex items-center gap-1.5 mb-4">
         <h3 className="text-lg font-semibold">Technologiefluss (UC5)</h3>
         <DownloadButton onClick={() => {
           const rows = pairs.map(p => [p.a, cpcDescription(p.a, cpc_descriptions), p.b, cpcDescription(p.b, cpc_descriptions), p.jaccard.toFixed(4)])
           exportCSV('uc5_cpc_flow.csv', ['CPC A', 'Beschreibung A', 'CPC B', 'Beschreibung B', 'Jaccard'], rows)
         }} />
+        <FullscreenButton isFullscreen={isFullscreen} onClick={toggleFullscreen} />
       </div>
 
       <div className="grid grid-cols-2 gap-3 mb-4">

@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid, ReferenceArea, ReferenceLine } from 'recharts'
 import MetricCard from './MetricCard'
 import DownloadButton from './DownloadButton'
+import FullscreenButton from './FullscreenButton'
+import { useFullscreen } from '../hooks/useFullscreen'
 import { exportCSV } from '../utils/export'
 import ChartTooltip from './ChartTooltip'
 
@@ -32,6 +34,7 @@ const VIEWS = [
 
 export default function MaturityPanel({ data, dataCompleteUntil }) {
   const [viewMode, setViewMode] = useState('cumulative')
+  const { isFullscreen, toggleFullscreen } = useFullscreen()
 
   if (!data) return <PanelSkeleton title="Reifegrad" />
 
@@ -54,7 +57,7 @@ export default function MaturityPanel({ data, dataCompleteUntil }) {
   ] : []
 
   return (
-    <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-6">
+    <div className={isFullscreen ? 'fixed inset-0 z-50 bg-[#0d1117] overflow-y-auto p-8' : 'bg-white/[0.03] border border-white/[0.08] rounded-xl p-6'}>
       <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
         <div className="flex items-center gap-1.5">
           <h3 className="text-lg font-semibold">Reifegrad (UC2)</h3>
@@ -64,6 +67,7 @@ export default function MaturityPanel({ data, dataCompleteUntil }) {
             ])
             exportCSV('uc2_reifegrad.csv', ['Jahr', 'Patente', 'Kumulativ', 'S-Curve Fit'], rows)
           }} />
+          <FullscreenButton isFullscreen={isFullscreen} onClick={toggleFullscreen} />
         </div>
         {data.phase && (
           <span className={`px-2.5 py-0.5 border rounded-full text-xs ${phaseStyle}`}>
@@ -75,7 +79,7 @@ export default function MaturityPanel({ data, dataCompleteUntil }) {
       {data.phase ? (
         <>
           {chartData.length > 0 && (
-            <div className="h-56 sm:h-64 md:h-72 mb-4">
+            <div className={`${isFullscreen ? 'h-[70vh]' : 'h-56 sm:h-64 md:h-72'} mb-4`}>
               <div className="flex items-center justify-between mb-1">
                 <p className="text-xs text-[#5c6370]">
                   {viewMode === 'cumulative' ? 'Kumulative Patente' : 'Patente pro Jahr'}
@@ -109,7 +113,6 @@ export default function MaturityPanel({ data, dataCompleteUntil }) {
                         y2={region.y2}
                         fill={region.fill}
                         fillOpacity={0.04}
-                        ifOverflow="extendDomain"
                       />
                     ))}
                     {data.inflection_year && (

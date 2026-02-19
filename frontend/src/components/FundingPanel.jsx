@@ -2,6 +2,8 @@ import { useState, useMemo } from 'react'
 import { BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, ReferenceArea, ReferenceLine } from 'recharts'
 import MetricCard from './MetricCard'
 import DownloadButton from './DownloadButton'
+import FullscreenButton from './FullscreenButton'
+import { useFullscreen } from '../hooks/useFullscreen'
 import { exportCSV } from '../utils/export'
 import ChartTooltip from './ChartTooltip'
 
@@ -27,6 +29,7 @@ function formatTooltipValue(value) {
 
 export default function FundingPanel({ data, dataCompleteUntil, selectedActor }) {
   const [hiddenProgs, setHiddenProgs] = useState(new Set())
+  const { isFullscreen, toggleFullscreen } = useFullscreen()
 
   if (!data) return <PanelSkeleton title="Förderung" />
 
@@ -83,7 +86,7 @@ export default function FundingPanel({ data, dataCompleteUntil, selectedActor })
   const cagrValue = data.funding_cagr
 
   return (
-    <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-6">
+    <div className={isFullscreen ? 'fixed inset-0 z-50 bg-[#0d1117] overflow-y-auto p-8' : 'bg-white/[0.03] border border-white/[0.08] rounded-xl p-6'}>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-1.5">
           <h3 className="text-lg font-semibold">Förderung (UC4)</h3>
@@ -91,6 +94,7 @@ export default function FundingPanel({ data, dataCompleteUntil, selectedActor })
             const rows = timeSeries.map(t => [t.year, t.projects || 0, t.funding || 0])
             exportCSV('uc4_foerderung.csv', ['Jahr', 'Projekte', 'Förderung EUR'], rows)
           }} />
+          <FullscreenButton isFullscreen={isFullscreen} onClick={toggleFullscreen} />
         </div>
         {selectedActor && (
           <span className="px-2 py-0.5 bg-[#e8917a]/10 border border-[#e8917a]/20 rounded-full text-[10px] text-[#e8917a]">
@@ -144,7 +148,7 @@ export default function FundingPanel({ data, dataCompleteUntil, selectedActor })
       )}
 
       {(stackedData || timeSeries.length > 0) && (
-        <div className="h-40 sm:h-48">
+        <div className={isFullscreen ? 'h-[60vh]' : 'h-40 sm:h-48'}>
           <p className="text-xs text-[#5c6370] mb-1">Förderung pro Jahr (Mio. EUR)</p>
           <ResponsiveContainer width="100%" height="100%">
             {stackedData ? (
@@ -157,7 +161,11 @@ export default function FundingPanel({ data, dataCompleteUntil, selectedActor })
                 <Tooltip content={<ChartTooltip dataCompleteUntil={dataCompleteUntil} formatValue={(v, name) => `${v}M EUR`} />} />
                 <Legend wrapperStyle={{ fontSize: 10 }} />
                 {stackedProgrammes.filter(p => !hiddenProgs.has(p)).map(prog => (
-                  <Bar key={prog} dataKey={prog} stackId="funding" fill={PROGRAMME_COLORS[prog] || PROGRAMME_COLORS.UNKNOWN} />
+                  <Bar key={prog} dataKey={prog} stackId="funding" fill={PROGRAMME_COLORS[prog] || PROGRAMME_COLORS.UNKNOWN}>
+                    {stackedData.map((entry, i) => (
+                      <Cell key={i} fill={dataCompleteUntil && entry.year > dataCompleteUntil ? '#5c6370' : (PROGRAMME_COLORS[prog] || PROGRAMME_COLORS.UNKNOWN)} />
+                    ))}
+                  </Bar>
                 ))}
               </BarChart>
             ) : (

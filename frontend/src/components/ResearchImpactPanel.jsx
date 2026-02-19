@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar, Legend, ReferenceArea, ReferenceLine } from 'recharts'
 import MetricCard from './MetricCard'
 import DownloadButton from './DownloadButton'
+import FullscreenButton from './FullscreenButton'
+import { useFullscreen } from '../hooks/useFullscreen'
 import { exportCSV } from '../utils/export'
 import ChartTooltip from './ChartTooltip'
 
@@ -15,6 +17,7 @@ const VIEWS = [
 
 export default function ResearchImpactPanel({ data, dataCompleteUntil }) {
   const [view, setView] = useState('trend')
+  const { isFullscreen, toggleFullscreen } = useFullscreen()
 
   if (!data) return <PanelSkeleton />
 
@@ -24,13 +27,14 @@ export default function ResearchImpactPanel({ data, dataCompleteUntil }) {
   const pubTypes = data.publication_types || []
 
   return (
-    <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-6">
+    <div className={isFullscreen ? 'fixed inset-0 z-50 bg-[#0d1117] overflow-y-auto p-8' : 'bg-white/[0.03] border border-white/[0.08] rounded-xl p-6'}>
       <div className="flex items-center gap-1.5 mb-4">
         <h3 className="text-lg font-semibold">Forschungsimpact (UC7)</h3>
         <DownloadButton onClick={() => {
           const rows = topPapers.map(p => [p.title, p.year, p.citations, p.venue || ''])
           exportCSV('uc7_research_impact.csv', ['Titel', 'Jahr', 'Zitationen', 'Venue'], rows)
         }} />
+        <FullscreenButton isFullscreen={isFullscreen} onClick={toggleFullscreen} />
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
@@ -86,7 +90,7 @@ export default function ResearchImpactPanel({ data, dataCompleteUntil }) {
       </div>}
 
       {data.total_papers > 0 && view === 'trend' && citationTrend.length > 0 && (
-        <div className="h-48 sm:h-56">
+        <div className={isFullscreen ? 'h-[65vh]' : 'h-48 sm:h-56'}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={citationTrend}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
@@ -104,7 +108,7 @@ export default function ResearchImpactPanel({ data, dataCompleteUntil }) {
       )}
 
       {data.total_papers > 0 && view === 'papers' && topPapers.length > 0 && (
-        <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+        <div className={`space-y-2 ${isFullscreen ? 'max-h-[70vh]' : 'max-h-64'} overflow-y-auto pr-1`}>
           {topPapers.map((p, i) => (
             <div key={i} className="flex items-start gap-2 text-xs p-2 bg-white/[0.02] rounded-lg">
               <span className="text-[#5c6370] font-mono w-5 flex-shrink-0 text-right">{i + 1}</span>
@@ -119,7 +123,7 @@ export default function ResearchImpactPanel({ data, dataCompleteUntil }) {
       )}
 
       {data.total_papers > 0 && view === 'venues' && topVenues.length > 0 && (
-        <div className="h-48 sm:h-56">
+        <div className={isFullscreen ? 'h-[65vh]' : 'h-48 sm:h-56'}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={topVenues} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" horizontal={false} />
