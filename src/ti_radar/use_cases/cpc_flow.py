@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 
-from ti_radar.api.schemas import CpcFlowPanel
 from ti_radar.config import Settings
 from ti_radar.domain.cpc_descriptions import describe_cpc
 from ti_radar.domain.cpc_flow import (
@@ -12,7 +11,9 @@ from ti_radar.domain.cpc_flow import (
     build_cooccurrence_with_years,
     extract_cpc_sets_with_years,
 )
+from ti_radar.domain.models import CpcFlowPanel
 from ti_radar.infrastructure.repositories.patent_repo import PatentRepository
+from ti_radar.use_cases._helpers import effective_patent_end_year
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +25,25 @@ async def analyze_cpc_flow(
     *,
     cpc_level: int = 4,
     top_n: int = 15,
+    settings: Settings | None = None,
+    patent_repo: PatentRepository | None = None,
 ) -> tuple[CpcFlowPanel, list[str], list[str], list[str]]:
-    """CPC-Technologiefluss analysieren via Jaccard Co-Klassifikation."""
-    settings = Settings()
+    """CPC-Technologiefluss analysieren via Jaccard Co-Klassifikation.
+
+    Args:
+        technology: Suchbegriff
+        start_year: Startjahr
+        end_year: Endjahr
+        cpc_level: CPC-Hierarchie-Tiefe (Default: 4)
+        top_n: Anzahl Top-Codes (Default: 15)
+        settings: Optional — Settings-Instanz (Default: neu erzeugt)
+        patent_repo: Optional — PatentRepository (Default: aus Settings)
+
+    Returns:
+        Tuple aus (Panel, sources_used, methods, warnings)
+    """
+    if settings is None:
+        settings = Settings()
     sources: list[str] = []
     methods: list[str] = []
     warnings: list[str] = []
@@ -36,21 +53,17 @@ async def analyze_cpc_flow(
         return CpcFlowPanel(), sources, methods, warnings
 
     try:
-        repo = PatentRepository(settings.patents_db_path)
+        if patent_repo is None:
+            patent_repo = PatentRepository(settings.patents_db_path)
         # Nur vollstaendige Jahre verwenden
-        effective_end = end_year
-        last_full = await repo.get_last_full_year()
-        if last_full is not None and last_full < end_year:
-            effective_end = last_full
-            warnings.append(
-                f"Patent-Daten bis {effective_end} vollstaendig "
-                f"(ab {effective_end + 1} unvollstaendig)"
-            )
+        effective_end = await effective_patent_end_year(
+            patent_repo, end_year, warnings,
+        )
 
         # SQL-Pfad: Normalisierte patent_cpc Tabelle (alle Patente, kein Sampling)
-        if await repo._has_cpc_table():
+        if await patent_repo.has_cpc_table():
             return await _analyze_sql_path(
-                repo, technology, start_year, effective_end,
+                patent_repo, technology, start_year, effective_end,
                 cpc_level=cpc_level, top_n=top_n,
                 sources=sources, methods=methods, warnings=warnings,
             )
@@ -58,7 +71,7 @@ async def analyze_cpc_flow(
         # Fallback: Python-Pfad (denormalisierte CPC-Codes, LIMIT 10.000)
         logger.info("patent_cpc Tabelle nicht vorhanden — Fallback auf Python-Pfad")
         return await _analyze_python_path(
-            repo, technology, start_year, effective_end,
+            patent_repo, technology, start_year, effective_end,
             cpc_level=cpc_level, top_n=top_n,
             sources=sources, methods=methods, warnings=warnings,
         )

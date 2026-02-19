@@ -6,6 +6,7 @@ Reine Funktionen ohne IO — testbar, auditierbar, reproduzierbar.
 from __future__ import annotations
 
 import math
+from typing import Any
 
 
 def cagr(first_value: float, last_value: float, periods: int) -> float:
@@ -161,6 +162,70 @@ def classify_maturity_phase(
         confidence = 0.4
 
     return phase_en, phase_de, round(confidence, 2)
+
+
+def yoy_growth(current: int, previous: int) -> float | None:
+    """Prozentuale Veraenderung zum Vorjahr. None wenn Vorjahr=0."""
+    if previous == 0:
+        return None
+    return round(((current - previous) / previous) * 100, 1)
+
+
+# Backwards-compat Alias (UC1 nutzt den privaten Namen)
+_yoy_growth = yoy_growth
+
+
+def merge_time_series(
+    patent_years: list[dict[str, int]],
+    project_years: list[dict[str, int]],
+    publication_years: list[dict[str, int]],
+    start_year: int,
+    end_year: int,
+) -> list[dict[str, Any]]:
+    """Patent-, Projekt- und Publikations-Zeitreihen mit Wachstumsraten."""
+    patent_map = {y["year"]: y["count"] for y in patent_years}
+    project_map = {y["year"]: y["count"] for y in project_years}
+    publication_map = {y["year"]: y["count"] for y in publication_years}
+
+    all_years = set(range(start_year, end_year + 1))
+    all_years |= set(patent_map.keys())
+    all_years |= set(project_map.keys())
+    all_years |= set(publication_map.keys())
+
+    sorted_years = sorted(y for y in all_years if start_year <= y <= end_year)
+
+    series: list[dict[str, Any]] = []
+    for i, year in enumerate(sorted_years):
+        pat = patent_map.get(year, 0)
+        proj = project_map.get(year, 0)
+        pub = publication_map.get(year, 0)
+
+        entry: dict[str, Any] = {
+            "year": year,
+            "patents": pat,
+            "projects": proj,
+            "publications": pub,
+        }
+
+        if i > 0:
+            prev_year = sorted_years[i - 1]
+            entry["patents_growth"] = yoy_growth(
+                pat, patent_map.get(prev_year, 0),
+            )
+            entry["projects_growth"] = yoy_growth(
+                proj, project_map.get(prev_year, 0),
+            )
+            entry["publications_growth"] = yoy_growth(
+                pub, publication_map.get(prev_year, 0),
+            )
+
+        series.append(entry)
+
+    return series
+
+
+# Backwards-compat Alias (UC1 nutzt den privaten Namen)
+_merge_time_series = merge_time_series
 
 
 def merge_country_data(

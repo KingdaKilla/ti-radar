@@ -29,6 +29,7 @@ class Settings(BaseSettings):
 
     # OpenAIRE (optional)
     openaire_access_token: str = ""
+    openaire_refresh_token: str = ""
 
     # Semantic Scholar (optional, erhoeht Rate Limits)
     semantic_scholar_api_key: str = ""

@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import logging
 
-from ti_radar.api.schemas import GeographicPanel
 from ti_radar.config import Settings
 from ti_radar.domain.metrics import merge_country_data
+from ti_radar.domain.models import GeographicPanel
 from ti_radar.infrastructure.repositories.cordis_repo import CordisRepository
 from ti_radar.infrastructure.repositories.patent_repo import PatentRepository
+from ti_radar.use_cases._helpers import effective_patent_end_year
 
 logger = logging.getLogger(__name__)
 
@@ -17,9 +18,26 @@ async def analyze_geographic(
     technology: str,
     start_year: int,
     end_year: int,
+    *,
+    settings: Settings | None = None,
+    patent_repo: PatentRepository | None = None,
+    cordis_repo: CordisRepository | None = None,
 ) -> tuple[GeographicPanel, list[str], list[str], list[str]]:
-    """UC6: Geografische Verteilung analysieren."""
-    settings = Settings()
+    """UC6: Geografische Verteilung analysieren.
+
+    Args:
+        technology: Suchbegriff
+        start_year: Startjahr
+        end_year: Endjahr
+        settings: Optional — Settings-Instanz (Default: neu erzeugt)
+        patent_repo: Optional — PatentRepository (Default: aus Settings)
+        cordis_repo: Optional — CordisRepository (Default: aus Settings)
+
+    Returns:
+        Tuple aus (Panel, sources_used, methods, warnings)
+    """
+    if settings is None:
+        settings = Settings()
     sources: list[str] = []
     methods: list[str] = []
     warnings: list[str] = []
@@ -34,15 +52,15 @@ async def analyze_geographic(
     # Patent-Daten
     if settings.patents_db_available:
         try:
-            repo = PatentRepository(settings.patents_db_path)
-            last_full = await repo.get_last_full_year()
-            patent_end = min(end_year, last_full) if last_full else end_year
-            if last_full and last_full < end_year:
-                warnings.append(f"Patent-Daten bis {last_full} vollstaendig — {end_year} trunkiert")
-            patent_countries = await repo.count_by_country(
+            if patent_repo is None:
+                patent_repo = PatentRepository(settings.patents_db_path)
+            patent_end = await effective_patent_end_year(
+                patent_repo, end_year, warnings,
+            )
+            patent_countries = await patent_repo.count_by_country(
                 technology, start_year=start_year, end_year=patent_end
             )
-            applicant_countries = await repo.count_by_applicant_country(
+            applicant_countries = await patent_repo.count_by_applicant_country(
                 technology, start_year=start_year, end_year=patent_end
             )
             if patent_countries or applicant_countries:
@@ -54,17 +72,18 @@ async def analyze_geographic(
     # CORDIS-Daten
     if settings.cordis_db_available:
         try:
-            repo_c = CordisRepository(settings.cordis_db_path)
-            cordis_countries = await repo_c.count_by_country(
+            if cordis_repo is None:
+                cordis_repo = CordisRepository(settings.cordis_db_path)
+            cordis_countries = await cordis_repo.count_by_country(
                 technology, start_year=start_year, end_year=end_year
             )
-            city_data = await repo_c.orgs_by_city(
+            city_data = await cordis_repo.orgs_by_city(
                 technology, start_year=start_year, end_year=end_year
             )
-            collab_pairs = await repo_c.country_collaboration_pairs(
+            collab_pairs = await cordis_repo.country_collaboration_pairs(
                 technology, start_year=start_year, end_year=end_year
             )
-            cross_border = await repo_c.cross_border_projects(
+            cross_border = await cordis_repo.cross_border_projects(
                 technology, start_year=start_year, end_year=end_year, min_countries=3
             )
             if cordis_countries:

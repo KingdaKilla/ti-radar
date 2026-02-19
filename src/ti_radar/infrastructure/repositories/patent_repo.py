@@ -144,7 +144,7 @@ class PatentRepository:
             )
             return await cursor.fetchone() is not None
 
-    async def _has_cpc_table(self) -> bool:
+    async def has_cpc_table(self) -> bool:
         """Pruefen ob die normalisierte patent_cpc Tabelle existiert."""
         async with aiosqlite.connect(self._db_path) as db:
             cursor = await db.execute(
@@ -152,6 +152,9 @@ class PatentRepository:
                 "WHERE type='table' AND name='patent_cpc'"
             )
             return await cursor.fetchone() is not None
+
+    # Backwards-compat Alias
+    _has_cpc_table = has_cpc_table
 
     async def _top_applicants_normalized(
         self,

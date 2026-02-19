@@ -6,12 +6,17 @@ import asyncio
 import logging
 from typing import Any, cast
 
-from ti_radar.api.schemas import LandscapePanel
 from ti_radar.config import Settings
-from ti_radar.domain.metrics import merge_country_data
+from ti_radar.domain.metrics import (  # noqa: F401
+    _merge_time_series,
+    _yoy_growth,
+    merge_country_data,
+)
+from ti_radar.domain.models import LandscapePanel
 from ti_radar.infrastructure.adapters.openaire_adapter import OpenAIREAdapter
 from ti_radar.infrastructure.repositories.cordis_repo import CordisRepository
 from ti_radar.infrastructure.repositories.patent_repo import PatentRepository
+from ti_radar.use_cases._helpers import effective_patent_end_year as _effective_patent_end_year
 
 logger = logging.getLogger(__name__)
 
@@ -20,14 +25,29 @@ async def analyze_landscape(
     technology: str,
     start_year: int,
     end_year: int,
+    *,
+    settings: Settings | None = None,
+    patent_repo: PatentRepository | None = None,
+    cordis_repo: CordisRepository | None = None,
+    openaire_adapter: OpenAIREAdapter | None = None,
 ) -> tuple[LandscapePanel, list[str], list[str], list[str]]:
     """
     UC1: Technology Landscape analysieren.
 
+    Args:
+        technology: Suchbegriff
+        start_year: Startjahr
+        end_year: Endjahr
+        settings: Optional — Settings-Instanz (Default: neu erzeugt)
+        patent_repo: Optional — PatentRepository (Default: aus Settings)
+        cordis_repo: Optional — CordisRepository (Default: aus Settings)
+        openaire_adapter: Optional — OpenAIREAdapter (Default: aus Settings)
+
     Returns:
         Tuple aus (Panel, sources_used, methods, warnings)
     """
-    settings = Settings()
+    if settings is None:
+        settings = Settings()
     sources: list[str] = []
     methods: list[str] = []
     warnings: list[str] = []
@@ -47,16 +67,12 @@ async def analyze_landscape(
     tasks: list[asyncio.Task[Any]] = []
 
     if settings.patents_db_available:
-        patent_repo = PatentRepository(settings.patents_db_path)
+        if patent_repo is None:
+            patent_repo = PatentRepository(settings.patents_db_path)
         # Nur vollstaendige Jahre fuer Patent-Daten verwenden
-        effective_patent_end = end_year
-        last_full = await patent_repo.get_last_full_year()
-        if last_full is not None and last_full < end_year:
-            effective_patent_end = last_full
-            warnings.append(
-                f"Patent-Daten bis {effective_patent_end} vollstaendig "
-                f"(ab {effective_patent_end + 1} unvollstaendig)"
-            )
+        effective_patent_end = await _effective_patent_end_year(
+            patent_repo, end_year, warnings,
+        )
         end = effective_patent_end
         tasks.append(asyncio.create_task(
             patent_repo.count_by_year(technology, start_year=start_year, end_year=end),
@@ -70,7 +86,8 @@ async def analyze_landscape(
         warnings.append("Patent-DB nicht verfuegbar — keine Patentdaten")
 
     if settings.cordis_db_available:
-        cordis_repo = CordisRepository(settings.cordis_db_path)
+        if cordis_repo is None:
+            cordis_repo = CordisRepository(settings.cordis_db_path)
         tasks.append(asyncio.create_task(
             cordis_repo.count_by_year(technology, start_year=start_year, end_year=end_year),
             name="project_years",
@@ -83,9 +100,13 @@ async def analyze_landscape(
         warnings.append("CORDIS-DB nicht verfuegbar — keine Projektdaten")
 
     if settings.openaire_available:
-        openaire = OpenAIREAdapter(access_token=settings.openaire_access_token)
+        if openaire_adapter is None:
+            openaire_adapter = OpenAIREAdapter(
+                access_token=settings.openaire_access_token,
+                refresh_token=settings.openaire_refresh_token,
+            )
         tasks.append(asyncio.create_task(
-            openaire.count_by_year(technology, start_year=start_year, end_year=end_year),
+            openaire_adapter.count_by_year(technology, start_year=start_year, end_year=end_year),
             name="publication_years",
         ))
 
@@ -145,61 +166,5 @@ async def analyze_landscape(
     )
 
     return panel, sources, methods, warnings
-
-
-def _yoy_growth(current: int, previous: int) -> float | None:
-    """Prozentuale Veraenderung zum Vorjahr. None wenn Vorjahr=0."""
-    if previous == 0:
-        return None
-    return round(((current - previous) / previous) * 100, 1)
-
-
-def _merge_time_series(
-    patent_years: list[dict[str, int]],
-    project_years: list[dict[str, int]],
-    publication_years: list[dict[str, int]],
-    start_year: int,
-    end_year: int,
-) -> list[dict[str, Any]]:
-    """Patent-, Projekt- und Publikations-Zeitreihen mit Wachstumsraten."""
-    patent_map = {y["year"]: y["count"] for y in patent_years}
-    project_map = {y["year"]: y["count"] for y in project_years}
-    publication_map = {y["year"]: y["count"] for y in publication_years}
-
-    all_years = set(range(start_year, end_year + 1))
-    all_years |= set(patent_map.keys())
-    all_years |= set(project_map.keys())
-    all_years |= set(publication_map.keys())
-
-    sorted_years = sorted(y for y in all_years if start_year <= y <= end_year)
-
-    series: list[dict[str, Any]] = []
-    for i, year in enumerate(sorted_years):
-        pat = patent_map.get(year, 0)
-        proj = project_map.get(year, 0)
-        pub = publication_map.get(year, 0)
-
-        entry: dict[str, Any] = {
-            "year": year,
-            "patents": pat,
-            "projects": proj,
-            "publications": pub,
-        }
-
-        if i > 0:
-            prev_year = sorted_years[i - 1]
-            entry["patents_growth"] = _yoy_growth(
-                pat, patent_map.get(prev_year, 0),
-            )
-            entry["projects_growth"] = _yoy_growth(
-                proj, project_map.get(prev_year, 0),
-            )
-            entry["publications_growth"] = _yoy_growth(
-                pub, publication_map.get(prev_year, 0),
-            )
-
-        series.append(entry)
-
-    return series
 
 

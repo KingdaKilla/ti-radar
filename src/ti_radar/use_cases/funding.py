@@ -5,9 +5,9 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from ti_radar.api.schemas import FundingPanel
 from ti_radar.config import Settings
 from ti_radar.domain.metrics import cagr
+from ti_radar.domain.models import FundingPanel
 from ti_radar.infrastructure.repositories.cordis_repo import CordisRepository
 
 logger = logging.getLogger(__name__)
@@ -17,22 +17,28 @@ async def analyze_funding(
     technology: str,
     start_year: int,
     end_year: int,
+    *,
+    settings: Settings | None = None,
+    cordis_repo: CordisRepository | None = None,
 ) -> tuple[FundingPanel, list[str], list[str], list[str]]:
     """
     UC4: EU-Foerderung fuer eine Technologie analysieren.
 
     Ausschliesslich aus CORDIS-Daten (FP7, H2020, Horizon Europe).
     """
-    settings = Settings()
+    if settings is None:
+        settings = Settings()
     sources: list[str] = []
     methods: list[str] = []
     warnings: list[str] = []
 
-    if not settings.cordis_db_available:
+    repo: CordisRepository | None = cordis_repo
+    if repo is None and settings.cordis_db_available:
+        repo = CordisRepository(settings.cordis_db_path)
+
+    if repo is None:
         warnings.append("CORDIS-DB nicht verfuegbar — keine Foerderdaten")
         return FundingPanel(), sources, methods, warnings
-
-    repo = CordisRepository(settings.cordis_db_path)
 
     funding_years: list[dict[str, int | float]] = []
     programme_data: list[dict[str, str | int | float]] = []

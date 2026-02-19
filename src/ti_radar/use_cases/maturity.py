@@ -6,11 +6,12 @@ import itertools
 import logging
 from typing import Any
 
-from ti_radar.api.schemas import MaturityPanel
 from ti_radar.config import Settings
 from ti_radar.domain.metrics import cagr, classify_maturity_phase, s_curve_confidence
+from ti_radar.domain.models import MaturityPanel
 from ti_radar.domain.scurve import fit_best_model
 from ti_radar.infrastructure.repositories.patent_repo import PatentRepository
+from ti_radar.use_cases._helpers import effective_patent_end_year as _effective_patent_end_year
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,9 @@ async def analyze_maturity(
     technology: str,
     start_year: int,
     end_year: int,
+    *,
+    settings: Settings | None = None,
+    patent_repo: PatentRepository | None = None,
 ) -> tuple[MaturityPanel, list[str], list[str], list[str]]:
     """
     UC2: Reifegrad einer Technologie analysieren.
@@ -27,8 +31,16 @@ async def analyze_maturity(
     - S-Curve-Fit (Levenberg-Marquardt) fuer Reifegradbestimmung
     - Phasen-Klassifikation nach Gao et al. (2013)
     - Patent-Familien-Deduplizierung (OECD, 2009)
+
+    Args:
+        technology: Suchbegriff
+        start_year: Startjahr
+        end_year: Endjahr
+        settings: Optional — Settings-Instanz (Default: neu erzeugt)
+        patent_repo: Optional — PatentRepository (Default: aus Settings)
     """
-    settings = Settings()
+    if settings is None:
+        settings = Settings()
     sources: list[str] = []
     methods: list[str] = []
     warnings: list[str] = []
@@ -39,15 +51,16 @@ async def analyze_maturity(
     # Patent-Zeitreihe (dedupliziert nach Patent-Familien)
     if settings.patents_db_available:
         try:
-            repo = PatentRepository(settings.patents_db_path)
+            if patent_repo is None:
+                patent_repo = PatentRepository(settings.patents_db_path)
             # Primaer: unique families (OECD 2009 — Dopplungen vermeiden)
-            rows = await repo.count_families_by_year(
+            rows = await patent_repo.count_families_by_year(
                 technology, start_year=start_year, end_year=end_year
             )
             patent_years = {r["year"]: r["count"] for r in rows}
             # Fallback auf count_by_year falls keine family_id vorhanden
             if not patent_years:
-                rows = await repo.count_by_year(
+                rows = await patent_repo.count_by_year(
                     technology, start_year=start_year, end_year=end_year
                 )
                 patent_years = {r["year"]: r["count"] for r in rows}
@@ -57,13 +70,9 @@ async def analyze_maturity(
                 sources.append("EPO DOCDB (lokal)")
 
             # Letztes vollstaendiges Jahr ermitteln (fuer S-Curve)
-            last_full = await repo.get_last_full_year()
-            if last_full is not None and last_full < end_year:
-                effective_end_year = last_full
-                warnings.append(
-                    f"S-Curve auf {start_year}\u2013{effective_end_year} begrenzt "
-                    f"(Daten ab {effective_end_year + 1} unvollstaendig)"
-                )
+            effective_end_year = await _effective_patent_end_year(
+                patent_repo, end_year, warnings,
+            )
         except Exception as e:
             logger.warning("Maturity patent query failed: %s", e)
             warnings.append(f"Patent-Abfrage fehlgeschlagen: {e}")

@@ -5,12 +5,13 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from ti_radar.api.schemas import CompetitivePanel
 from ti_radar.config import Settings
 from ti_radar.domain.metrics import hhi_concentration_level, hhi_index
+from ti_radar.domain.models import CompetitivePanel
 from ti_radar.infrastructure.adapters.gleif_adapter import GleifAdapter
 from ti_radar.infrastructure.repositories.cordis_repo import CordisRepository
 from ti_radar.infrastructure.repositories.patent_repo import PatentRepository
+from ti_radar.use_cases._helpers import effective_patent_end_year
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,11 @@ async def analyze_competitive(
     technology: str,
     start_year: int,
     end_year: int,
+    *,
+    settings: Settings | None = None,
+    patent_repo: PatentRepository | None = None,
+    cordis_repo: CordisRepository | None = None,
+    gleif_adapter: GleifAdapter | None = None,
 ) -> tuple[CompetitivePanel, list[str], list[str], list[str]]:
     """
     UC3: Wettbewerbslandschaft analysieren.
@@ -27,10 +33,19 @@ async def analyze_competitive(
     Gesamtbild der wichtigsten Akteure mit HHI-Konzentration,
     Netzwerk-Graph und vollstaendiger Akteur-Tabelle.
     """
-    settings = Settings()
+    if settings is None:
+        settings = Settings()
     sources: list[str] = []
     methods: list[str] = []
     warnings: list[str] = []
+
+    # Repos aus DI oder Settings erzeugen
+    repo: PatentRepository | None = patent_repo
+    if repo is None and settings.patents_db_available:
+        repo = PatentRepository(settings.patents_db_path)
+    repo_c: CordisRepository | None = cordis_repo
+    if repo_c is None and settings.cordis_db_available:
+        repo_c = CordisRepository(settings.cordis_db_path)
 
     # Akteure getrennt nach Quelle sammeln
     patent_actors: dict[str, int] = {}
@@ -41,16 +56,11 @@ async def analyze_competitive(
     effective_patent_end = end_year
 
     # Patent-Anmelder
-    if settings.patents_db_available:
+    if repo is not None:
         try:
-            repo = PatentRepository(settings.patents_db_path)
-            last_full = await repo.get_last_full_year()
-            if last_full is not None and last_full < end_year:
-                effective_patent_end = last_full
-                warnings.append(
-                    f"Patent-Daten bis {effective_patent_end} vollstaendig "
-                    f"(ab {effective_patent_end + 1} unvollstaendig)"
-                )
+            effective_patent_end = await effective_patent_end_year(
+                repo, end_year, warnings
+            )
             applicants = await repo.top_applicants(
                 technology, start_year=start_year, end_year=effective_patent_end, limit=50
             )
@@ -65,9 +75,8 @@ async def analyze_competitive(
             warnings.append(f"Patent-Abfrage fehlgeschlagen: {e}")
 
     # CORDIS-Organisationen (mit Land-Info)
-    if settings.cordis_db_available:
+    if repo_c is not None:
         try:
-            repo_c = CordisRepository(settings.cordis_db_path)
             orgs = await repo_c.top_organizations_with_country(
                 technology, start_year=start_year, end_year=end_year, limit=50
             )
@@ -131,7 +140,7 @@ async def analyze_competitive(
     ]
     if actors_without_country:
         try:
-            gleif = GleifAdapter(cache_db_path=settings.gleif_cache_db_path)
+            gleif = gleif_adapter or GleifAdapter(cache_db_path=settings.gleif_cache_db_path)
             gleif_results = await gleif.resolve_batch(
                 actors_without_country[:20], max_api_calls=20
             )
@@ -148,7 +157,8 @@ async def analyze_competitive(
     # --- Netzwerk-Graph ---
     network_nodes, network_edges = await _build_network(
         technology, start_year, end_year, effective_patent_end,
-        actor_counts, patent_actors, cordis_actors, settings, warnings,
+        actor_counts, patent_actors, cordis_actors, warnings,
+        patent_repo=repo, cordis_repo=repo_c,
     )
     if network_edges:
         methods.append("Co-Partizipation-Netzwerk (Patent-Co-Anmelder + CORDIS-Projektpartner)")
@@ -182,8 +192,10 @@ async def _build_network(
     actor_counts: dict[str, int],
     patent_actors: dict[str, int],
     cordis_actors: dict[str, int],
-    settings: Settings,
     warnings: list[str],
+    *,
+    patent_repo: PatentRepository | None = None,
+    cordis_repo: CordisRepository | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Netzwerk-Graph: Knoten + Kanten aus Co-Applicants und Co-Partizipation."""
     patent_actor_set: set[str] = set(patent_actors.keys())
@@ -191,10 +203,9 @@ async def _build_network(
     all_edges: dict[tuple[str, str], int] = {}
 
     # Patent-Co-Anmelder
-    if settings.patents_db_available:
+    if patent_repo is not None:
         try:
-            repo = PatentRepository(settings.patents_db_path)
-            co_apps = await repo.co_applicants(
+            co_apps = await patent_repo.co_applicants(
                 technology, start_year=start_year, end_year=effective_patent_end, limit=200
             )
             for edge in co_apps:
@@ -209,10 +220,9 @@ async def _build_network(
             warnings.append(f"Netzwerk Patent-Kanten fehlgeschlagen: {e}")
 
     # CORDIS-Co-Partizipation
-    if settings.cordis_db_available:
+    if cordis_repo is not None:
         try:
-            repo_c = CordisRepository(settings.cordis_db_path)
-            co_parts = await repo_c.co_participation(
+            co_parts = await cordis_repo.co_participation(
                 technology, start_year=start_year, end_year=end_year, limit=200
             )
             for edge in co_parts:

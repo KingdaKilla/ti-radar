@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
 
-from ti_radar.api.schemas import TemporalPanel
 from ti_radar.config import Settings
+from ti_radar.domain.models import TemporalPanel
 from ti_radar.infrastructure.repositories.cordis_repo import CordisRepository
 from ti_radar.infrastructure.repositories.patent_repo import PatentRepository
+from ti_radar.use_cases._helpers import effective_patent_end_year
 
 logger = logging.getLogger(__name__)
 
@@ -17,9 +17,14 @@ async def analyze_temporal(
     technology: str,
     start_year: int,
     end_year: int,
+    *,
+    settings: Settings | None = None,
+    patent_repo: PatentRepository | None = None,
+    cordis_repo: CordisRepository | None = None,
 ) -> tuple[TemporalPanel, list[str], list[str], list[str]]:
     """UC8: Temporal-Dynamik analysieren."""
-    settings = Settings()
+    if settings is None:
+        settings = Settings()
     sources: list[str] = []
     methods: list[str] = []
     warnings: list[str] = []
@@ -28,15 +33,15 @@ async def analyze_temporal(
     cpc_by_year: dict[int, list[str]] = {}
     instrument_data: list[dict[str, str | int | float]] = []
 
+    # Patent-Repo erstellen, falls nicht injiziert
+    if patent_repo is None and settings.patents_db_available:
+        patent_repo = PatentRepository(settings.patents_db_path)
+
     # Patent-Akteure pro Jahr
-    if settings.patents_db_available:
+    if patent_repo is not None:
         try:
-            repo = PatentRepository(settings.patents_db_path)
-            last_full = await repo.get_last_full_year()
-            patent_end = min(end_year, last_full) if last_full else end_year
-            if last_full and last_full < end_year:
-                warnings.append(f"Patent-Daten bis {last_full} vollstaendig — {end_year} trunkiert")
-            patent_actors = await repo.top_applicants_by_year(
+            patent_end = await effective_patent_end_year(patent_repo, end_year, warnings)
+            patent_actors = await patent_repo.top_applicants_by_year(
                 technology, start_year=start_year, end_year=patent_end
             )
             for row in patent_actors:
@@ -46,7 +51,7 @@ async def analyze_temporal(
                     actors_by_year[year] = {}
                 actors_by_year[year][name] = actors_by_year[year].get(name, 0) + int(row["count"])
 
-            cpc_rows = await repo.get_cpc_codes_with_years(
+            cpc_rows = await patent_repo.get_cpc_codes_with_years(
                 technology, start_year=start_year, end_year=patent_end
             )
             for row in cpc_rows:
@@ -61,11 +66,14 @@ async def analyze_temporal(
             logger.warning("Temporal patent query failed: %s", e)
             warnings.append(f"Patent-Temporal fehlgeschlagen: {e}")
 
+    # CORDIS-Repo erstellen, falls nicht injiziert
+    if cordis_repo is None and settings.cordis_db_available:
+        cordis_repo = CordisRepository(settings.cordis_db_path)
+
     # CORDIS-Akteure pro Jahr
-    if settings.cordis_db_available:
+    if cordis_repo is not None:
         try:
-            repo_c = CordisRepository(settings.cordis_db_path)
-            cordis_actors = await repo_c.orgs_by_year(
+            cordis_actors = await cordis_repo.orgs_by_year(
                 technology, start_year=start_year, end_year=end_year
             )
             for row in cordis_actors:
@@ -75,7 +83,7 @@ async def analyze_temporal(
                     actors_by_year[year] = {}
                 actors_by_year[year][name] = actors_by_year[year].get(name, 0) + int(row["count"])
 
-            instrument_data = await repo_c.funding_by_instrument(
+            instrument_data = await cordis_repo.funding_by_instrument(
                 technology, start_year=start_year, end_year=end_year
             )
             if cordis_actors:
@@ -121,112 +129,11 @@ async def analyze_temporal(
     return panel, sources, methods, warnings
 
 
-def _compute_actor_dynamics(
-    actors_by_year: dict[int, dict[str, int]],
-) -> list[dict[str, Any]]:
-    """New Entrant Rate und Persistence Rate pro Jahr."""
-    sorted_years = sorted(actors_by_year.keys())
-    if not sorted_years:
-        return []
-
-    result: list[dict[str, Any]] = []
-    prev_actors: set[str] = set()
-
-    for year in sorted_years:
-        current_actors = set(actors_by_year[year].keys())
-
-        if not prev_actors:
-            new_entrant_rate = 1.0
-            persistence_rate = 0.0
-        else:
-            new_entrants = current_actors - prev_actors
-            persisting = current_actors & prev_actors
-            new_entrant_rate = len(new_entrants) / len(current_actors) if current_actors else 0.0
-            persistence_rate = len(persisting) / len(prev_actors) if prev_actors else 0.0
-
-        result.append({
-            "year": year,
-            "new_entrant_rate": round(new_entrant_rate, 4),
-            "persistence_rate": round(persistence_rate, 4),
-            "total_actors": len(current_actors),
-        })
-
-        prev_actors = current_actors
-
-    return result
-
-
-def _compute_technology_breadth(
-    cpc_by_year: dict[int, list[str]],
-) -> list[dict[str, Any]]:
-    """Technologie-Breite pro Jahr (Leydesdorff et al. 2015).
-
-    Zwei Granularitaeten:
-    - unique_cpc_sections: CPC-Sektionen (A-H, grob, max 9)
-    - unique_cpc_subclasses: CPC-Subklassen (Level 4, z.B. H01L, feinkoernig)
-    """
-    result: list[dict[str, Any]] = []
-
-    for year in sorted(cpc_by_year.keys()):
-        sections: set[str] = set()
-        subclasses: set[str] = set()
-        for cpc_str in cpc_by_year[year]:
-            for code in cpc_str.split(","):
-                code = code.strip()
-                if code:
-                    sections.add(code[0])
-                    if len(code) >= 4:
-                        subclasses.add(code[:4])
-
-        result.append({
-            "year": year,
-            "unique_cpc_sections": len(sections),
-            "unique_cpc_subclasses": len(subclasses),
-        })
-
-    return result
-
-
-def _compute_actor_timeline(
-    actors_by_year: dict[int, dict[str, int]], top_n: int = 10
-) -> list[dict[str, Any]]:
-    """Top-N Akteure mit ihren aktiven Jahren."""
-    total_counts: dict[str, int] = {}
-    actor_years: dict[str, list[int]] = {}
-
-    for year, actors in actors_by_year.items():
-        for name, count in actors.items():
-            total_counts[name] = total_counts.get(name, 0) + count
-            if name not in actor_years:
-                actor_years[name] = []
-            actor_years[name].append(year)
-
-    top_actors = sorted(total_counts.items(), key=lambda x: x[1], reverse=True)[:top_n]
-
-    return [
-        {
-            "name": name,
-            "years_active": sorted(actor_years.get(name, [])),
-            "total_count": count,
-        }
-        for name, count in top_actors
-    ]
-
-
-def _compute_programme_evolution(
-    instrument_data: list[dict[str, str | int | float]],
-) -> list[dict[str, Any]]:
-    """Programm-Verteilung pro Jahr (fuer Stacked Area Chart)."""
-    by_year: dict[int, dict[str, int]] = {}
-    for row in instrument_data:
-        year = int(row.get("year", 0))
-        scheme = str(row.get("scheme", ""))
-        count = int(row.get("count", 0))
-        if year not in by_year:
-            by_year[year] = {}
-        by_year[year][scheme] = by_year[year].get(scheme, 0) + count
-
-    return [
-        {"year": year, **counts}
-        for year, counts in sorted(by_year.items())
-    ]
+# --- Reine Berechnungsfunktionen (definiert in domain/temporal_metrics.py) ---
+# Re-Exports fuer Rueckwaertskompatibilitaet (Tests importieren diese Pfade)
+from ti_radar.domain.temporal_metrics import (  # noqa: F401, E402
+    _compute_actor_dynamics,
+    _compute_actor_timeline,
+    _compute_programme_evolution,
+    _compute_technology_breadth,
+)

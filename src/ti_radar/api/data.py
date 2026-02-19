@@ -218,15 +218,15 @@ async def suggest_technologies(
 
     if settings.patents_db_available:
         try:
-            repo = PatentRepository(settings.patents_db_path)
-            all_titles.extend(await repo.suggest_titles(q, limit=500))
+            patent_repo = PatentRepository(settings.patents_db_path)
+            all_titles.extend(await patent_repo.suggest_titles(q, limit=500))
         except Exception as exc:
             logger.warning("Patent suggestions failed: %s", exc)
 
     if settings.cordis_db_available:
         try:
-            repo_c = CordisRepository(settings.cordis_db_path)
-            all_titles.extend(await repo_c.suggest_titles(q, limit=200))
+            cordis_repo = CordisRepository(settings.cordis_db_path)
+            all_titles.extend(await cordis_repo.suggest_titles(q, limit=200))
         except Exception as exc:
             logger.warning("CORDIS suggestions failed: %s", exc)
 

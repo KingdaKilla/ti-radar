@@ -6,25 +6,28 @@ import asyncio
 import logging
 import time
 from datetime import datetime
-from typing import cast
+from typing import Any, cast
 
 from fastapi import APIRouter
 
 from ti_radar.api.schemas import (
+    ExplainabilityMetadata,
+    RadarRequest,
+    RadarResponse,
+)
+from ti_radar.config import Settings
+from ti_radar.domain.api_health import check_jwt_expiry, detect_runtime_failures
+from ti_radar.domain.models import (
     CompetitivePanel,
     CpcFlowPanel,
-    ExplainabilityMetadata,
     FundingPanel,
     GeographicPanel,
     LandscapePanel,
     MaturityPanel,
-    RadarRequest,
-    RadarResponse,
     ResearchImpactPanel,
     TemporalPanel,
 )
-from ti_radar.config import Settings
-from ti_radar.domain.api_health import check_jwt_expiry, detect_runtime_failures
+from ti_radar.infrastructure.repositories.cordis_repo import CordisRepository
 from ti_radar.infrastructure.repositories.patent_repo import PatentRepository
 from ti_radar.use_cases.competitive import analyze_competitive
 from ti_radar.use_cases.cpc_flow import analyze_cpc_flow
@@ -59,57 +62,100 @@ async def analyze_technology(request: RadarRequest) -> RadarResponse:
     current_year = datetime.now().year
     start_year = current_year - request.years
 
-    # Alle 8 UCs parallel ausfuehren (30s Timeout)
-    results = await asyncio.wait_for(
-        asyncio.gather(
-            analyze_landscape(request.technology, start_year, current_year),
-            analyze_maturity(request.technology, start_year, current_year),
-            analyze_competitive(request.technology, start_year, current_year),
-            analyze_funding(request.technology, start_year, current_year),
-            analyze_cpc_flow(request.technology, start_year, current_year),
-            analyze_geographic(request.technology, start_year, current_year),
-            analyze_research_impact(request.technology, start_year, current_year),
-            analyze_temporal(request.technology, start_year, current_year),
-        ),
-        timeout=30.0,
+    # Composition Root: Settings + Repos einmal erzeugen, an alle UCs weiterreichen
+    settings = Settings()
+    patent_repo: PatentRepository | None = None
+    cordis_repo: CordisRepository | None = None
+    if settings.patents_db_available:
+        patent_repo = PatentRepository(settings.patents_db_path)
+    if settings.cordis_db_available:
+        cordis_repo = CordisRepository(settings.cordis_db_path)
+
+    tech = request.technology
+
+    # Alle 8 UCs parallel ausfuehren (per-UC Timeout, Graceful Degradation)
+    # UC5 (CPC-Jaccard) benoetigt Self-Join auf patent_cpc (237M Zeilen) -> 180s
+    default_timeout = 30.0
+    cpc_timeout = 180.0
+
+    uc_tasks_with_timeout: list[tuple[Any, float]] = [
+        (analyze_landscape(
+            tech, start_year, current_year,
+            settings=settings, patent_repo=patent_repo, cordis_repo=cordis_repo,
+        ), default_timeout),
+        (analyze_maturity(
+            tech, start_year, current_year,
+            settings=settings, patent_repo=patent_repo,
+        ), default_timeout),
+        (analyze_competitive(
+            tech, start_year, current_year,
+            settings=settings, patent_repo=patent_repo, cordis_repo=cordis_repo,
+        ), default_timeout),
+        (analyze_funding(
+            tech, start_year, current_year,
+            settings=settings, cordis_repo=cordis_repo,
+        ), default_timeout),
+        (analyze_cpc_flow(
+            tech, start_year, current_year,
+            settings=settings, patent_repo=patent_repo,
+        ), cpc_timeout),
+        (analyze_geographic(
+            tech, start_year, current_year,
+            settings=settings, patent_repo=patent_repo, cordis_repo=cordis_repo,
+        ), default_timeout),
+        (analyze_research_impact(
+            tech, start_year, current_year,
+            settings=settings,
+        ), default_timeout),
+        (analyze_temporal(
+            tech, start_year, current_year,
+            settings=settings, patent_repo=patent_repo, cordis_repo=cordis_repo,
+        ), default_timeout),
+    ]
+    results = await asyncio.gather(
+        *[asyncio.wait_for(t, timeout=to) for t, to in uc_tasks_with_timeout],
+        return_exceptions=True,
     )
 
-    # Ergebnisse entpacken
-    (
-        landscape_result, maturity_result, competitive_result,
-        funding_result, cpc_result, geographic_result,
-        research_impact_result, temporal_result,
-    ) = results
-    landscape, l_sources, l_methods, l_warnings = landscape_result
-    maturity, m_sources, m_methods, m_warnings = maturity_result
-    competitive, c_sources, c_methods, c_warnings = competitive_result
-    funding, f_sources, f_methods, f_warnings = funding_result
-    cpc_flow, cp_sources, cp_methods, cp_warnings = cpc_result
-    geographic, g_sources, g_methods, g_warnings = geographic_result
-    research_impact, ri_sources, ri_methods, ri_warnings = research_impact_result
-    temporal, t_sources, t_methods, t_warnings = temporal_result
+    # Ergebnisse entpacken (Graceful Degradation: fehlgeschlagene UCs -> leere Panels)
+    uc_names = [
+        "Landscape", "Maturity", "Competitive", "Funding",
+        "CPC-Flow", "Geographic", "Research-Impact", "Temporal",
+    ]
+    empty_panels = [
+        LandscapePanel(), MaturityPanel(), CompetitivePanel(), FundingPanel(),
+        CpcFlowPanel(), GeographicPanel(), ResearchImpactPanel(), TemporalPanel(),
+    ]
+    panels = []
+    all_sources: list[str] = []
+    all_methods: list[str] = []
+    all_warnings: list[str] = []
 
-    # Explainability aggregieren (Duplikate entfernen)
-    all_sources = list(dict.fromkeys(
-        l_sources + m_sources + c_sources + f_sources + cp_sources
-        + g_sources + ri_sources + t_sources
-    ))
-    all_methods = list(dict.fromkeys(
-        l_methods + m_methods + c_methods + f_methods + cp_methods
-        + g_methods + ri_methods + t_methods
-    ))
-    all_warnings = (
-        l_warnings + m_warnings + c_warnings + f_warnings + cp_warnings
-        + g_warnings + ri_warnings + t_warnings
-    )
+    for i, result in enumerate(results):
+        if isinstance(result, BaseException):
+            err_type = type(result).__name__
+            logger.warning("UC %s fehlgeschlagen: %s: %s", uc_names[i], err_type, result)
+            panels.append(empty_panels[i])
+            all_warnings.append(f"{uc_names[i]}: Timeout oder Fehler ({err_type})")
+        else:
+            panel, sources, methods, warnings = result
+            panels.append(panel)
+            all_sources.extend(sources)
+            all_methods.extend(methods)
+            all_warnings.extend(warnings)
+
+    (landscape, maturity, competitive, funding,
+     cpc_flow, geographic, research_impact, temporal) = panels
+
+    # Duplikate entfernen
+    all_sources = list(dict.fromkeys(all_sources))
+    all_methods = list(dict.fromkeys(all_methods))
 
     # Letztes vollstaendiges Datenjahr ermitteln
     data_complete_until: int | None = None
-    settings = Settings()
     try:
-        if settings.patents_db_available:
-            repo = PatentRepository(settings.patents_db_path)
-            data_complete_until = await repo.get_last_full_year()
+        if patent_repo is not None:
+            data_complete_until = await patent_repo.get_last_full_year()
     except Exception as exc:
         logger.warning("Could not determine last full year: %s", exc)
 
@@ -117,6 +163,7 @@ async def analyze_technology(request: RadarRequest) -> RadarResponse:
     api_alerts = []
     openaire_alert = check_jwt_expiry(
         settings.openaire_access_token, "OpenAIRE",
+        has_refresh_token=bool(settings.openaire_refresh_token),
     )
     if openaire_alert:
         api_alerts.append(openaire_alert)
