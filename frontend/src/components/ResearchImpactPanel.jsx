@@ -6,6 +6,7 @@ import FullscreenButton from './FullscreenButton'
 import { useFullscreen } from '../hooks/useFullscreen'
 import { exportCSV } from '../utils/export'
 import ChartTooltip from './ChartTooltip'
+import AnalysisText from './AnalysisText'
 
 const TOOLTIP = { backgroundColor: '#141c2e', border: '1px solid rgba(232,145,122,0.2)', borderRadius: 8 }
 
@@ -157,6 +158,8 @@ export default function ResearchImpactPanel({ data, dataCompleteUntil }) {
           </div>
         </div>
       )}
+
+      {isFullscreen && <AnalysisText text={data.analysis_text} />}
 
       <div className="mt-4 pt-3 border-t border-white/[0.06]">
         <p className="text-[10px] text-[#5c6370] leading-relaxed">

@@ -31,6 +31,7 @@ class LandscapePanel(BaseModel):
     total_publications: int = 0
     time_series: list[dict[str, Any]] = []
     top_countries: list[dict[str, Any]] = []
+    analysis_text: str = ""
 
 
 class MaturityPanel(BaseModel):
@@ -47,6 +48,7 @@ class MaturityPanel(BaseModel):
     fit_model: str = ""
     time_series: list[dict[str, Any]] = []
     s_curve_fitted: list[dict[str, Any]] = []
+    analysis_text: str = ""
 
 
 class CompetitivePanel(BaseModel):
@@ -63,6 +65,7 @@ class CompetitivePanel(BaseModel):
 
     # Vollstaendige Akteur-Tabelle
     full_actors: list[dict[str, Any]] = []
+    analysis_text: str = ""
 
 
 class FundingPanel(BaseModel):
@@ -76,6 +79,7 @@ class FundingPanel(BaseModel):
     time_series: list[dict[str, Any]] = []
     time_series_by_programme: list[dict[str, Any]] = []
     instrument_breakdown: list[dict[str, Any]] = []
+    analysis_text: str = ""
 
 
 class CpcFlowPanel(BaseModel):
@@ -89,6 +93,7 @@ class CpcFlowPanel(BaseModel):
     cpc_level: int = 4
     year_data: dict[str, Any] = {}
     cpc_descriptions: dict[str, str] = {}
+    analysis_text: str = ""
 
 
 class GeographicPanel(BaseModel):
@@ -100,6 +105,7 @@ class GeographicPanel(BaseModel):
     country_distribution: list[dict[str, Any]] = []
     city_distribution: list[dict[str, Any]] = []
     collaboration_pairs: list[dict[str, Any]] = []
+    analysis_text: str = ""
 
 
 class ResearchImpactPanel(BaseModel):
@@ -113,6 +119,7 @@ class ResearchImpactPanel(BaseModel):
     top_papers: list[dict[str, Any]] = []
     top_venues: list[dict[str, Any]] = []
     publication_types: list[dict[str, Any]] = []
+    analysis_text: str = ""
 
 
 class TemporalPanel(BaseModel):
@@ -126,6 +133,7 @@ class TemporalPanel(BaseModel):
     entrant_persistence_trend: list[dict[str, Any]] = []
     instrument_evolution: list[dict[str, Any]] = []
     technology_breadth: list[dict[str, Any]] = []
+    analysis_text: str = ""
 
 
 # --- Explainability ---

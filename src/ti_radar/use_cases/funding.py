@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 from ti_radar.config import Settings
+from ti_radar.domain.analysis_text import generate_funding_text
 from ti_radar.domain.metrics import cagr
 from ti_radar.domain.models import FundingPanel
 from ti_radar.infrastructure.repositories.cordis_repo import CordisRepository
@@ -168,5 +169,6 @@ async def analyze_funding(
         time_series_by_programme=time_series_by_programme,
         instrument_breakdown=instrument_breakdown,
     )
+    panel.analysis_text = generate_funding_text(panel)
 
     return panel, sources, methods, warnings

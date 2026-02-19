@@ -7,6 +7,7 @@ import logging
 from typing import Any, cast
 
 from ti_radar.config import Settings
+from ti_radar.domain.analysis_text import generate_landscape_text
 from ti_radar.domain.metrics import (  # noqa: F401
     _merge_time_series,
     _yoy_growth,
@@ -164,6 +165,7 @@ async def analyze_landscape(
         time_series=time_series,
         top_countries=top_countries,
     )
+    panel.analysis_text = generate_landscape_text(panel)
 
     return panel, sources, methods, warnings
 

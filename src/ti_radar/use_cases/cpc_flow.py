@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 
 from ti_radar.config import Settings
+from ti_radar.domain.analysis_text import generate_cpc_flow_text
 from ti_radar.domain.cpc_descriptions import describe_cpc
 from ti_radar.domain.cpc_flow import (
     assign_colors,
@@ -130,6 +131,7 @@ async def _analyze_sql_path(
         year_data=year_data,
         cpc_descriptions=cpc_descriptions,
     )
+    panel.analysis_text = generate_cpc_flow_text(panel)
 
     return panel, sources, methods, warnings
 
@@ -187,5 +189,6 @@ async def _analyze_python_path(
         year_data=year_data,
         cpc_descriptions=cpc_descriptions,
     )
+    panel.analysis_text = generate_cpc_flow_text(panel)
 
     return panel, sources, methods, warnings

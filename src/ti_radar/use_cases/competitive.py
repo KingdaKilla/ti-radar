@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 from ti_radar.config import Settings
+from ti_radar.domain.analysis_text import generate_competitive_text
 from ti_radar.domain.metrics import hhi_concentration_level, hhi_index
 from ti_radar.domain.models import CompetitivePanel
 from ti_radar.infrastructure.adapters.gleif_adapter import GleifAdapter
@@ -180,6 +181,7 @@ async def analyze_competitive(
         network_edges=network_edges,
         full_actors=full_actors,
     )
+    panel.analysis_text = generate_competitive_text(panel)
 
     return panel, sources, methods, warnings
 

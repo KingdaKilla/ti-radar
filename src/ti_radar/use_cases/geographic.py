@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 
 from ti_radar.config import Settings
+from ti_radar.domain.analysis_text import generate_geographic_text
 from ti_radar.domain.metrics import merge_country_data
 from ti_radar.domain.models import GeographicPanel
 from ti_radar.infrastructure.repositories.cordis_repo import CordisRepository
@@ -112,6 +113,7 @@ async def analyze_geographic(
         city_distribution=city_data,
         collaboration_pairs=collab_pairs,
     )
+    panel.analysis_text = generate_geographic_text(panel)
 
     return panel, sources, methods, warnings
 

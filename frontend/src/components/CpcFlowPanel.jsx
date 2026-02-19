@@ -5,6 +5,7 @@ import FullscreenButton from './FullscreenButton'
 import { useFullscreen } from '../hooks/useFullscreen'
 import ChordDiagram from './ChordDiagram'
 import { exportCSV } from '../utils/export'
+import AnalysisText from './AnalysisText'
 
 function getHeatColor(value, max) {
   if (value === 0 || max === 0) return 'rgba(255,255,255,0.02)'
@@ -376,6 +377,8 @@ export default function CpcFlowPanel({ data }) {
           </div>
         </div>
       )}
+
+      {isFullscreen && <AnalysisText text={data.analysis_text} />}
 
       <div className="mt-4 pt-3 border-t border-white/[0.06]">
         <p className="text-[10px] text-[#5c6370] leading-relaxed">

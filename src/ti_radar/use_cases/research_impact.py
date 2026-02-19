@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 from ti_radar.config import Settings
+from ti_radar.domain.analysis_text import generate_research_impact_text
 from ti_radar.domain.models import ResearchImpactPanel
 from ti_radar.infrastructure.adapters.semantic_scholar_adapter import SemanticScholarAdapter
 
@@ -80,6 +81,7 @@ async def analyze_research_impact(
         top_venues=top_venues,
         publication_types=pub_types,
     )
+    panel.analysis_text = generate_research_impact_text(panel)
 
     return panel, sources, methods, warnings
 

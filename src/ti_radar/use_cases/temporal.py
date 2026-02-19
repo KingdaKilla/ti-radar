@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 
 from ti_radar.config import Settings
+from ti_radar.domain.analysis_text import generate_temporal_text
 from ti_radar.domain.models import TemporalPanel
 from ti_radar.infrastructure.repositories.cordis_repo import CordisRepository
 from ti_radar.infrastructure.repositories.patent_repo import PatentRepository
@@ -125,6 +126,7 @@ async def analyze_temporal(
         instrument_evolution=instrument_data,
         technology_breadth=tech_breadth,
     )
+    panel.analysis_text = generate_temporal_text(panel)
 
     return panel, sources, methods, warnings
 

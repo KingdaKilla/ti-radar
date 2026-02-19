@@ -7,6 +7,7 @@ import logging
 from typing import Any
 
 from ti_radar.config import Settings
+from ti_radar.domain.analysis_text import generate_maturity_text
 from ti_radar.domain.metrics import cagr, classify_maturity_phase, s_curve_confidence
 from ti_radar.domain.models import MaturityPanel
 from ti_radar.domain.scurve import fit_best_model
@@ -178,5 +179,6 @@ async def analyze_maturity(
         time_series=time_series,
         s_curve_fitted=s_curve_fitted,
     )
+    panel.analysis_text = generate_maturity_text(panel)
 
     return panel, sources, methods, warnings

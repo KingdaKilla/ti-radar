@@ -8,6 +8,7 @@ import ForceGraph from './ForceGraph'
 import ActorTable from './ActorTable'
 import { exportCSV } from '../utils/export'
 import { toTitleCase } from '../utils/format'
+import AnalysisText from './AnalysisText'
 
 const BAR_COLORS = ['#e8917a', '#e09b87', '#d8a594', '#d0afa1', '#c8b9ae', '#f0abfc', '#d4a0e0', '#9b8ab8', '#fbbf24', '#94a3b8']
 
@@ -131,6 +132,8 @@ export default function CompetitivePanel({ data, onSelectActor }) {
       {view === 'table' && (
         <ActorTable actors={data.full_actors} />
       )}
+
+      {isFullscreen && <AnalysisText text={data.analysis_text} />}
 
       <div className="mt-4 pt-3 border-t border-white/[0.06]">
         <p className="text-[10px] text-[#5c6370] leading-relaxed">
