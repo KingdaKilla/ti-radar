@@ -6,7 +6,8 @@ services:
     volumes:
       - ./data:/app/data
     env_file:
-      - .env
+      - path: .env
+        required: false
     # No ports exposed to host directly, accessible via frontend proxy
     expose:
       - "8001"
