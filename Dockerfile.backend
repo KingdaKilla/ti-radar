@@ -2,24 +2,20 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install system dependencies for scipy/numpy
+# Install only essential system dependencies (if any)
+# Note: most modern wheels for arm64 (Mac) include pre-compiled binaries
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    python3-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies separately for better caching
+# Copy configuration first
 COPY pyproject.toml .
-# Create a dummy src to allow pip install . to work for dependencies
-RUN mkdir -p src/ti_radar && touch src/ti_radar/__init__.py
-RUN pip install --no-cache-dir .
 
-# Copy the actual source code
+# Copy source code and install the package
 COPY src/ src/
-# Re-install to ensure the real source is used (quick due to cached deps)
 RUN pip install --no-cache-dir .
 
-# Prepare data directory
+# Data directory
 RUN mkdir -p /app/data
 
 EXPOSE 8001
